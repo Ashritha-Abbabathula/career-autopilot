@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import clock as clk
-from . import deadlines, tracker
+from . import deadlines, planner, tracker
 
 
 def local_date(app, now: datetime):
@@ -16,5 +16,15 @@ def apps(app, cmd, now: datetime) -> str:
     return tracker.summary_text(app.conn) + "\n\nDue soon:\n" + deadlines.text(app.conn, today)
 
 
+def today(app, cmd, now: datetime) -> str:
+    return planner.day_text(app.conn, local_date(app, now))
+
+
+def week(app, cmd, now: datetime) -> str:
+    return planner.week_text(app.conn, local_date(app, now))
+
+
 def register_all(app) -> None:
     app.register("apps", apps)
+    app.register("today", today)
+    app.register("week", week)
