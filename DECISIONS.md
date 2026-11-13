@@ -10,3 +10,4 @@
 | D6 | Human approves everything outward | Automatic sending | Reputation and safety; the owner's name is on every message | Narrow categories can go automatic after a trial period, per category, by the owner's choice |
 | D7 | No LinkedIn or Reddit automation | Scrapers | Terms of service and account risk | Official access becomes available |
 | D8 | Settings loader reads `.env` itself and never prints values | python-dotenv | No extra dependency; redaction is tested | A library is clearly better |
+| D9 | This repo is public (from 2026-11-13) | Keep private | The owner wants it visible on her profile. Checked first: no secrets or personal data in files or history; only her usual commit email is visible. Her notes, resumes, tracker and plans stay in a separate private repo | A secret or personal detail ever appears: remove it, rotate the key, and consider making the repo private again |
