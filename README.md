@@ -35,3 +35,15 @@ No LinkedIn or Reddit scraping or automation, no automatic applying, no bot-dete
 
 ## How this was built
 Built with Claude's help as a learning project. Plain-English study notes live in the owner's private notes repo.
+
+
+## Running it (Telegram)
+1. In Telegram, message @BotFather, send `/newbot`, and copy the token into `.env` as `TELEGRAM_BOT_TOKEN`.
+2. Message @userinfobot, copy your numeric id into `.env` as `TELEGRAM_OWNER_CHAT_ID`. Press Start in your new bot.
+3. `python -m ca.check_env` shows what is still missing (never the values).
+4. `powershell -File scripts/start_bot.ps1` starts the bot. No public address, tunnel or webhook is needed: it polls Telegram.
+5. Without a Gemini key it still answers every fixed command (`today`, `week`, `apps`, `done`, `push`, `undo`, `pause`...). With a key, free text is interpreted too.
+6. Try it without Telegram first: `python -m ca.chat`.
+
+What is tested (all with fakes, no network): commands, approvals and undo, the outbox rules, the tracker and CSV import, the plan and morning card, replanning with undo, the model client (fallback, cap), intent validation, scheduler windows, LeetCode and GitHub readers, Telegram sending and polling (owner only), and the runner.
+What is not tested: real Telegram, LeetCode, GitHub and Gemini responses; the first live run is the real test.
