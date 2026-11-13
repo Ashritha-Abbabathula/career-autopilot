@@ -13,6 +13,8 @@ _REPLY = re.compile(r"^(yes|y|ok|approve|skip|no|later|edit)\b\s*#?(\d+)?\s*(.*)
 _PUSH = re.compile(r"^push\s+(.+?)\s+(?:to|until|till)\s+(.+)$", re.I)
 _FREE = re.compile(r"^(?:i\s+(?:only\s+)?have\s+|only\s+|free\s+)?(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b(?:\s+(?:free|left|today))*$", re.I)
 _DONE = re.compile(r"^done\s+(.+)$", re.I)
+_TRIAGE = re.compile(r"^(?:triage|check|look at)\s+(.+)$", re.I | re.S)
+_LINK = re.compile(r"https?://\S+", re.I)
 _SKIPTASK = re.compile(r"^skip\s+(?!#?\d+\b)(.+)$", re.I)
 
 
@@ -52,4 +54,9 @@ def parse(raw: str) -> Command:
         if kind == "edit" and number is None:
             return Command("free_text", text=text)
         return Command(kind, number=number, text=rest)
+    m = _TRIAGE.match(text)
+    if m and (_LINK.search(m.group(1)) or len(m.group(1)) > 80):
+        return Command("triage", text=m.group(1).strip())
+    if _LINK.search(text):
+        return Command("triage", text=text)
     return Command("free_text", text=text)

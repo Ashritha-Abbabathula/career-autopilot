@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import clock as clk
-from . import approvals, deadlines, planner, replan, tracker
+from . import approvals, deadlines, planner, replan, tracker, triage as triage_mod
 
 
 def local_date(app, now: datetime):
@@ -62,7 +62,14 @@ def undo(app, cmd, now: datetime) -> str:
     return app._undo(now)
 
 
+def triage(app, cmd, now: datetime) -> str:
+    verdict = triage_mod.triage(app.model, cmd.text)
+    row_id = triage_mod.add_to_tracker(app.conn, verdict, local_date(app, now).isoformat())
+    return triage_mod.describe(verdict, row_id)
+
+
 def register_all(app) -> None:
+    app.register("triage", triage)
     app.register("done", done)
     app.register("skip_task", skip_task)
     app.register("push", push)
