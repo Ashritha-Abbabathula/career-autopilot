@@ -19,11 +19,11 @@ def build_app(conn, owner: str = "simulator", tz_name: str = "Asia/Kolkata") -> 
     return app
 
 
-def step(app: App, sender, clock, text: str) -> str:
+def step(app: App, sender, clock, text: str, channel: str = "simulator", **flush_rules) -> str:
     """One round: message in, reply out through the outbox. Returns the reply text."""
     now = clock.now()
-    reply = app.handle(text, now, channel="simulator")
-    outbox.flush(app.conn, sender, now)
+    reply = app.handle(text, now, channel=channel)
+    outbox.flush(app.conn, sender, now, **flush_rules)
     return reply
 
 

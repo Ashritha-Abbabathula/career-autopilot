@@ -44,7 +44,7 @@ class App:
         self.handlers[kind] = fn
 
     # ---- entry point -------------------------------------------------
-    def handle(self, raw: str, now: datetime, channel: str = "whatsapp") -> str:
+    def handle(self, raw: str, now: datetime, channel: str = "chat") -> str:
         """Log the message, work out the reply, queue it, and return its text."""
         db.add_message(self.conn, "in", raw or "", channel=channel, now=now)
         reply = self._reply(parse(raw), now)

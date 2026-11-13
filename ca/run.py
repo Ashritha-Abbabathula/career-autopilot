@@ -1,0 +1,57 @@
+"""Start the bot:  python -m ca.run
+
+Needs TELEGRAM_BOT_TOKEN and TELEGRAM_OWNER_CHAT_ID in .env (python -m ca.check_env shows what is missing).
+No public address, tunnel or webhook is needed: the bot asks Telegram for new messages.
+Stop with Ctrl+C.
+"""
+from __future__ import annotations
+
+import sys
+import time
+
+from . import db, handlers
+from .app import App
+from .clock import SystemClock
+from .config import load_config
+from .http import UrllibHttp
+from .llm import GeminiModel, NoModel
+from .runtime import bootstrap, poll_once, tick
+from .telegram import TelegramSender
+
+
+def main() -> int:
+    cfg = load_config()
+    if not cfg.telegram_ready:
+        print("Telegram is not set up. Fill TELEGRAM_BOT_TOKEN and TELEGRAM_OWNER_CHAT_ID in .env, "
+              "then run: python -m ca.check_env")
+        return 1
+    conn = db.connect(cfg.db_path)
+    db.init_schema(conn)
+    http, clock = UrllibHttp(), SystemClock()
+    model = (GeminiModel(cfg.gemini_api_key, cfg.gemini_models, http, conn, cfg.model_daily_call_cap)
+             if cfg.gemini_ready else NoModel())
+    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model)
+    handlers.register_all(app)
+    sender = TelegramSender(http, cfg.telegram_bot_token, cfg.telegram_owner_chat_id)
+    for note in bootstrap(app, cfg):
+        print(note)
+    mode = "with model" if cfg.gemini_ready else "no model key: fixed commands only"
+    print(f"Career Autopilot is running (Telegram, {mode}). Ctrl+C to stop.")
+    failures = 0
+    try:
+        while True:
+            try:
+                tick(app, sender, http, cfg, clock)
+                poll_once(app, sender, http, cfg, clock)
+                failures = 0
+            except Exception as exc:               # keep running; log the type only (no secrets)
+                failures += 1
+                print(f"warning: {type(exc).__name__} (attempt {failures})", file=sys.stderr)
+                time.sleep(min(60, 5 * failures))
+    except KeyboardInterrupt:
+        print("\nStopped.")
+        return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

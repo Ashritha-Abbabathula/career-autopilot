@@ -3,7 +3,8 @@
 Rules, in order, for a proactive message (one the bot starts):
   paused -> blocked_paused; quiet hours -> stays queued until they end;
   daily proactive cap reached -> blocked_budget;
-  more than 24h since her last message -> needs a template, else blocked_window.
+  more than 24h since her last message -> needs a template, else blocked_window
+  (only for channels that have such a window; Telegram does not, so it passes window_required=False).
 A direct reply to something she just sent is always allowed, even while paused,
 so 'resume' and 'help' still answer.
 """
@@ -53,7 +54,7 @@ def proactive_sent_today(conn, now: datetime, tz_name: str) -> int:
 
 
 def flush(conn, sender, now: datetime, tz_name: str = "Asia/Kolkata", quiet_start: int = 23,
-          quiet_end: int = 7, daily_proactive_cap: int = 6) -> List[tuple]:
+          quiet_end: int = 7, daily_proactive_cap: int = 6, window_required: bool = True) -> List[tuple]:
     """Try to send everything due. Returns [(id, status)] for what changed."""
     results = []
     local = now.astimezone(clk.tzinfo_for(tz_name))
@@ -71,7 +72,7 @@ def flush(conn, sender, now: datetime, tz_name: str = "Asia/Kolkata", quiet_star
                 continue
             if proactive_sent_today(conn, now, tz_name) >= daily_proactive_cap:
                 _mark(conn, row["id"], "blocked_budget", now); results.append((row["id"], "blocked_budget")); continue
-            if not window_open(conn, now):
+            if window_required and not window_open(conn, now):
                 if not row["template_name"]:
                     _mark(conn, row["id"], "blocked_window", now); results.append((row["id"], "blocked_window")); continue
                 use_template = True
@@ -85,6 +86,6 @@ def flush(conn, sender, now: datetime, tz_name: str = "Asia/Kolkata", quiet_star
             results.append((row["id"], "failed"))
             continue
         _mark(conn, row["id"], "sent", now)
-        db.add_message(conn, "out", row["body"], channel="whatsapp", status="sent", now=now)
+        db.add_message(conn, "out", row["body"], channel="chat", status="sent", now=now)
         results.append((row["id"], "sent"))
     return results

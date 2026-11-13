@@ -104,5 +104,13 @@ class FailureTests(unittest.TestCase):
         self.assertEqual(conn.execute("SELECT COUNT(*) FROM messages WHERE direction='out'").fetchone()[0], 1)
 
 
+class NoWindowChannelTests(unittest.TestCase):
+    def test_telegram_style_channel_ignores_the_24_hour_window(self):
+        conn = fresh()                                    # she has never written: window "closed"
+        i = outbox.enqueue(conn, "n", "digest", "proactive", now=NOON)
+        outbox.flush(conn, FakeSender(), NOON, window_required=False)
+        self.assertEqual(status(conn, i), "sent")
+
+
 if __name__ == "__main__":
     unittest.main()
