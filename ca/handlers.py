@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import clock as clk
-from . import approvals, deadlines, planner, replan, tracker, digest as digest_mod, leetcode, scorecard as scorecard_mod, triage as triage_mod
+from pathlib import Path
+
+from . import approvals, calendar_view, deadlines, planner, replan, tracker, digest as digest_mod, leetcode, scorecard as scorecard_mod, triage as triage_mod
 
 
 def local_date(app, now: datetime):
@@ -79,7 +81,16 @@ def scorecard(app, cmd, now: datetime) -> str:
     return scorecard_mod.build(app.conn, local_date(app, now), stats.solved_total if stats else None, sent)
 
 
+def calendar(app, cmd, now: datetime) -> str:
+    if not app.private_dir:
+        return "I don't know where to save the calendar yet (CA_PRIVATE_DIR is not set)."
+    path = calendar_view.write(app.conn, Path(app.private_dir) / "calendar" / "live_calendar.html", local_date(app, now))
+    head = f"Calendar rebuilt: {path}\nOpen it in your browser. Tap a day for the full list.\n\n"
+    return head + planner.week_text(app.conn, local_date(app, now))
+
+
 def register_all(app) -> None:
+    app.register("calendar", calendar)
     app.register("scorecard", scorecard)
     app.register("digest", digest)
     app.register("triage", triage)

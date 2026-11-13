@@ -27,6 +27,7 @@ JOBS = [
     Job("streak_last_call", 22, 0, 45),
     Job("scorecard", 18, 0, 180, weekday=6),
     Job("mentor", 19, 0, 120, weekday=6),
+    Job("calendar_refresh", 6, 0, 480),
     Job("linkedin_draft", 9, 0, 300),
     Job("outreach_queue", 10, 30, 300, weekday=1),
 ]

@@ -8,11 +8,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import clock as clk
-from . import db, facts as facts_mod, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
+from . import calendar_view, db, facts as facts_mod, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
 from .chat import step
 
 BUILDERS = {}          # extra jobs (for example the weekly scorecard) register a text builder here
-BUILT_IN = ("mentor", "linkedin_draft", "outreach_queue", "scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
+BUILT_IN = ("calendar_refresh", "mentor", "linkedin_draft", "outreach_queue", "scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
 
 
 def build_job_text(name, conn, http, cfg, now, today, app=None):
@@ -28,6 +28,9 @@ def build_job_text(name, conn, http, cfg, now, today, app=None):
     if name == "scorecard":
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
         return scorecard.build(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))
+    if name == "calendar_refresh":
+        calendar_view.write(conn, Path(cfg.private_dir) / "calendar" / "live_calendar.html", today)
+        return None                                       # silent: just keep the page fresh
     if name == "mentor":
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
         return mentor.weekly_note(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))

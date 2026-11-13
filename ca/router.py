@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-MENU_WORDS = {"today", "week", "apps", "inbox", "pause", "resume", "undo", "help", "focus", "digest", "scorecard"}
+MENU_WORDS = {"today", "week", "apps", "inbox", "pause", "resume", "undo", "help", "focus", "digest", "scorecard", "calendar"}
 _REPLY = re.compile(r"^(yes|y|ok|approve|skip|no|later|edit)\b\s*#?(\d+)?\s*(.*)$", re.I)
 _PUSH = re.compile(r"^push\s+(.+?)\s+(?:to|until|till)\s+(.+)$", re.I)
 _FREE = re.compile(r"^(?:i\s+(?:only\s+)?have\s+|only\s+|free\s+)?(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b(?:\s+(?:free|left|today))*$", re.I)

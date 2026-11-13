@@ -106,10 +106,10 @@ class TickTests(unittest.TestCase):
 
     def test_morning_card_is_sent_once(self):
         clock = self.clock_at_ist(7, 45)
-        self.assertEqual(runtime.tick(self.app, self.sender, FakeHttp(), cfg(), clock), ["morning_card"])
+        self.assertIn("morning_card", runtime.tick(self.app, self.sender, FakeHttp(), cfg(), clock))
         self.assertEqual(len(self.sender.sent), 1)
         self.assertIn("Good morning", self.sender.sent[0][2])
-        self.assertEqual(runtime.tick(self.app, self.sender, FakeHttp(), cfg(), clock), [])
+        self.assertNotIn("morning_card", runtime.tick(self.app, self.sender, FakeHttp(), cfg(), clock))
         self.assertEqual(len(self.sender.sent), 1)
 
     def test_paused_blocks_the_morning_card_and_it_is_not_retried(self):

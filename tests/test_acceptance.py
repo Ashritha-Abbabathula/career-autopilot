@@ -39,7 +39,7 @@ class ScriptedDay(unittest.TestCase):
 
             # 07:45 IST on a Wednesday: the morning card goes out once
             clock = FakeClock(datetime(2026, 11, 18, 7, 45, tzinfo=IST).astimezone(timezone.utc))
-            self.assertEqual(runtime.tick(app, sender, FakeHttp(), cfg, clock), ["morning_card"])
+            self.assertIn("morning_card", runtime.tick(app, sender, FakeHttp(), cfg, clock))
             self.assertIn("Good morning", sender.sent[-1][2])
 
             say = lambda text: step(app, sender, clock, text)
