@@ -8,11 +8,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import clock as clk
-from . import db, github, leetcode, nudges, outbox, planner, scheduler, telegram, tracker
+from . import db, github, leetcode, nudges, outbox, planner, scheduler, scorecard, telegram, tracker
 from .chat import step
 
 BUILDERS = {}          # extra jobs (for example the weekly scorecard) register a text builder here
-BUILT_IN = ("morning_card", "checkin", "streak_nudge", "streak_last_call")
+BUILT_IN = ("scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
 
 
 def build_job_text(name, conn, http, cfg, now, today):
@@ -25,6 +25,9 @@ def build_job_text(name, conn, http, cfg, now, today):
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
         gh = github.fetch_stats(http, cfg.github_user, now)
         return nudges.streak_hint(conn, today, lc, gh)
+    if name == "scorecard":
+        lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
+        return scorecard.build(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))
     fn = BUILDERS.get(name)
     return fn(conn, http, cfg, now, today) if fn else None
 
