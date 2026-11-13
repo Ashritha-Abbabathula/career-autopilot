@@ -89,7 +89,8 @@ def load_config(env: Optional[Mapping[str, str]] = None, env_file: Optional[str]
         gemini_models=models or defaults.gemini_models,
         model_daily_call_cap=_int(values, "MODEL_DAILY_CALL_CAP", defaults.model_daily_call_cap),
         whatsapp_token=values.get("WHATSAPP_TOKEN", ""),
-        whatsapp_phone_number_id=values.get("WHATSAPP_PHONE_NUMBER_ID", ""),
+        # Same name as PingFarm's .env so the value can be copied across; the longer name still works.
+        whatsapp_phone_number_id=values.get("WHATSAPP_PHONE_ID", "") or values.get("WHATSAPP_PHONE_NUMBER_ID", ""),
         whatsapp_app_secret=values.get("WHATSAPP_APP_SECRET", ""),
         whatsapp_verify_token=values.get("WHATSAPP_VERIFY_TOKEN", ""),
         owner_whatsapp=re.sub(r"\D", "", values.get("OWNER_WHATSAPP", "")),
