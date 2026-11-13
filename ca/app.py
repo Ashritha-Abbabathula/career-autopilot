@@ -27,9 +27,10 @@ Handler = Callable[["App", Command, datetime], str]
 
 
 class App:
-    def __init__(self, conn, owner: str, executors: Optional[Executors] = None):
+    def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata"):
         self.conn = conn
         self.owner = owner
+        self.tz_name = tz_name
         self.executors = executors or Executors()
         self.handlers: Dict[str, Handler] = {}
 

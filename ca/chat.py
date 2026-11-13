@@ -6,15 +6,17 @@ Uses the same App and outbox as the real channel, with a console sender.
 """
 from __future__ import annotations
 
-from . import db, outbox
+from . import db, handlers, outbox
 from .app import App
 from .clock import SystemClock
 from .config import load_config
 from .senders import ConsoleSender
 
 
-def build_app(conn, owner: str = "simulator") -> App:
-    return App(conn, owner)
+def build_app(conn, owner: str = "simulator", tz_name: str = "Asia/Kolkata") -> App:
+    app = App(conn, owner, tz_name=tz_name)
+    handlers.register_all(app)
+    return app
 
 
 def step(app: App, sender, clock, text: str) -> str:
