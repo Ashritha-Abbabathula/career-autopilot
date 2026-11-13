@@ -30,7 +30,7 @@ def main() -> int:
     http, clock = UrllibHttp(), SystemClock()
     model = (GeminiModel(cfg.gemini_api_key, cfg.gemini_models, http, conn, cfg.model_daily_call_cap)
              if cfg.gemini_ready else NoModel())
-    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model)
+    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model, private_dir=cfg.private_dir)
     handlers.register_all(app)
     sender = TelegramSender(http, cfg.telegram_bot_token, cfg.telegram_owner_chat_id)
     for note in bootstrap(app, cfg):

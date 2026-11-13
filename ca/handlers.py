@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import clock as clk
-from . import approvals, deadlines, planner, replan, tracker, triage as triage_mod
+from . import approvals, deadlines, planner, replan, tracker, digest as digest_mod, triage as triage_mod
 
 
 def local_date(app, now: datetime):
@@ -68,7 +68,12 @@ def triage(app, cmd, now: datetime) -> str:
     return triage_mod.describe(verdict, row_id)
 
 
+def digest(app, cmd, now: datetime) -> str:
+    return digest_mod.build_digest(app.conn, app.private_dir, local_date(app, now))
+
+
 def register_all(app) -> None:
+    app.register("digest", digest)
     app.register("triage", triage)
     app.register("done", done)
     app.register("skip_task", skip_task)

@@ -20,6 +20,8 @@ HELP = (
     "push <task> to <day> - move it (tomorrow, saturday, a date)\n"
     "3 hours - I only have this much time today\n"
     "apps - what you have applied to\n"
+    "digest - what the scout found\n"
+    "(paste a link or post and I will judge it)\n"
     "inbox - things waiting for your yes\n"
     "yes N / skip N / later N / edit N <text> - answer an item\n"
     "undo - take back the last change\n"
@@ -32,10 +34,11 @@ Handler = Callable[["App", Command, datetime], str]
 
 class App:
     def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata",
-                 model=None):
+                 model=None, private_dir: str = ""):
         self.conn = conn
         self.owner = owner
         self.tz_name = tz_name
+        self.private_dir = private_dir
         self.model = model or NoModel()
         self.executors = executors or Executors()
         self.handlers: Dict[str, Handler] = {}
