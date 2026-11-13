@@ -15,10 +15,13 @@ from .router import Command, parse
 HELP = (
     "I can do these:\n"
     "today / week - your plan\n"
+    "done <task> / skip <task> - tick or drop something from today\n"
+    "push <task> to <day> - move it (tomorrow, saturday, a date)\n"
+    "3 hours - I only have this much time today\n"
     "apps - what you have applied to\n"
     "inbox - things waiting for your yes\n"
     "yes N / skip N / later N / edit N <text> - answer an item\n"
-    "undo - take back the last approved item\n"
+    "undo - take back the last change\n"
     "pause / resume - stop or restart everything I do on my own\n"
     "help - this list"
 )
@@ -61,11 +64,11 @@ class App:
                 return self._inbox()
             if cmd.kind in ("yes", "skip", "later", "edit"):
                 return self._answer(cmd, now)
-            if cmd.kind == "undo":
-                return self._undo(now)
             fn = self.handlers.get(cmd.kind)
             if fn is not None:
                 return fn(self, cmd, now)
+            if cmd.kind == "undo":
+                return self._undo(now)
             if cmd.kind == "free_text":
                 return "I did not understand that. Say 'help' to see what I can do."
             return f"'{cmd.kind}' is not set up yet."

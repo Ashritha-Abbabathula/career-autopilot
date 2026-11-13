@@ -90,7 +90,7 @@ def import_plan(conn, plan: dict, settings: dict, force: bool = False) -> dict:
     for it in settings.get("items", []):
         d = date.fromisoformat(it["date"])
         if start <= d <= end:
-            _add_task(conn, it["title"], it.get("kind", "info"), d, movable=0, source="plan_item")
+            _add_task(conn, it["title"], it.get("kind", "info"), d, movable=1, source="plan_item")
             counts["items"] += 1
 
     conn.commit()
