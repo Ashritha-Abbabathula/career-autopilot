@@ -8,14 +8,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import clock as clk
-from . import db, github, leetcode, nudges, outbox, planner, scheduler, scorecard, telegram, tracker
+from . import db, facts as facts_mod, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
 from .chat import step
 
 BUILDERS = {}          # extra jobs (for example the weekly scorecard) register a text builder here
-BUILT_IN = ("scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
+BUILT_IN = ("mentor", "linkedin_draft", "outreach_queue", "scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
 
 
-def build_job_text(name, conn, http, cfg, now, today):
+def build_job_text(name, conn, http, cfg, now, today, app=None):
     """Text for a due job, or None when there is nothing worth saying."""
     if name == "morning_card":
         return planner.morning_card(conn, today)
@@ -28,6 +28,27 @@ def build_job_text(name, conn, http, cfg, now, today):
     if name == "scorecard":
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
         return scorecard.build(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))
+    if name == "mentor":
+        lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
+        return mentor.weekly_note(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))
+    private = Path(cfg.private_dir)
+    if name in ("linkedin_draft", "outreach_queue"):
+        try:
+            data = facts_mod.load(private / "facts" / "facts.json")
+        except facts_mod.FactError:
+            return None                                   # no facts file yet: nothing honest to write
+        if name == "linkedin_draft":
+            return linkedin.job(conn, app.model, data, private / "linkedin" / "schedule.json",
+                                private / "linkedin" / "drafts", today)
+        targets = outreach.select_targets(private / "tracker" / "outreach_targets.csv", 3, outreach.already_drafted(conn))
+        queued = 0
+        for t in targets:
+            try:
+                outreach.queue_draft(conn, t, data, now=now)
+                queued += 1
+            except (outreach.DraftError, facts_mod.FactError):
+                continue
+        return f"{queued} professor email draft{'s' if queued != 1 else ''} ready for you. Send 'inbox' to read them." if queued else None
     fn = BUILDERS.get(name)
     return fn(conn, http, cfg, now, today) if fn else None
 
@@ -40,7 +61,7 @@ def tick(app, sender, http, cfg, clock) -> list:
     for name in scheduler.due_jobs(local, scheduler.load_done(app.conn, db)):
         if name not in BUILT_IN and name not in BUILDERS:
             continue
-        text = build_job_text(name, app.conn, http, cfg, now, local.date())
+        text = build_job_text(name, app.conn, http, cfg, now, local.date(), app)
         if text:
             outbox.enqueue(app.conn, app.owner, text, "proactive", now=now)
         scheduler.mark_done(app.conn, db, name, local)

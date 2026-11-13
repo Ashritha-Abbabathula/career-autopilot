@@ -94,12 +94,32 @@ def make_executor(folder, today_fn: Callable[[], date]) -> Callable[[dict], str]
     return save
 
 
-def select_targets(csv_path, limit: int = 5) -> list:
-    """Rows the owner has marked 'verified' (faculty and openings checked) and that have no draft yet."""
+def already_drafted(conn) -> set:
+    """Target ids that already have a draft in the approval queue, in any state."""
+    import json
+    ids = set()
+    for row in conn.execute("SELECT payload FROM approvals WHERE kind = 'email_draft'"):
+        try:
+            ids.add(str(json.loads(row["payload"]).get("target_id", "")))
+        except ValueError:
+            pass
+    return ids
+
+
+def select_targets(csv_path, limit: int = 5, skip_ids=()) -> list:
+    """Targets ready to draft: marked 'verified', or found by the scout with an official page URL as the
+    email source (the scout only records addresses it saw on an official page). Never ones already drafted."""
     import csv
     path = Path(csv_path)
     if not path.is_file():
         return []
+    out = []
     with path.open(newline="", encoding="utf-8-sig") as fh:
-        rows = [r for r in csv.DictReader(fh) if (r.get("status") or "").strip().lower() == "verified"]
-    return rows[:limit]
+        for r in csv.DictReader(fh):
+            status = (r.get("status") or "").strip().lower()
+            official = (r.get("official_email_source") or "").strip().lower().startswith("http")
+            if str(r.get("id", "")) in {str(x) for x in skip_ids}:
+                continue
+            if status == "verified" or (status == "candidate" and official):
+                out.append(r)
+    return out[:limit]
