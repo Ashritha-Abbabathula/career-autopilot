@@ -32,7 +32,7 @@ Full plan with dates: the private notes repo, `notebooks/09-career-autopilot/IMP
 
 **CA-6**
 - [ ] S1-17 Scheduler (7:30 card, 9 pm check-in, nudges)
-- [ ] S1-18 LeetCode public-stats check (HTTP mocked in tests)
+- [ ] S1-18 LeetCode public-stats check (HTTP mocked in tests) and a streak helper: from the owner's list of already-solved problems, suggest one to re-solve each day and remind her in the evening if no accepted submission yet. It only reminds; it never submits (D10)
 - [ ] S1-19 GitHub activity check (HTTP mocked in tests)
 
 ## Sprint 2: WhatsApp and the application machine (23 Nov to 2 Dec)
