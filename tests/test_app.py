@@ -59,7 +59,7 @@ class TranscriptTests(unittest.TestCase):
         self.assertIn("not set up yet", step(app, s, clock, "scorecard"))
         app.register("scorecard", lambda a, c, n: "Plan: study.")
         self.assertEqual(step(app, s, clock, "scorecard"), "Plan: study.")
-        self.assertIn("did not understand", step(app, s, clock, "blah blah"))
+        self.assertIn("not set up", step(app, s, clock, "blah blah"))   # no model: fixed commands only
         self.assertIn("help", step(app, s, clock, ""))
 
     def test_messages_are_logged_both_ways(self):

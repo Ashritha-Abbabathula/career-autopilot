@@ -8,8 +8,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Callable, Dict, Optional
 
-from . import approvals, db, outbox
+from . import approvals, db, intents, outbox, planner
 from .approvals import ApprovalError, Executors
+from .llm import NoModel
 from .router import Command, parse
 
 HELP = (
@@ -30,10 +31,12 @@ Handler = Callable[["App", Command, datetime], str]
 
 
 class App:
-    def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata"):
+    def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata",
+                 model=None):
         self.conn = conn
         self.owner = owner
         self.tz_name = tz_name
+        self.model = model or NoModel()
         self.executors = executors or Executors()
         self.handlers: Dict[str, Handler] = {}
 
@@ -70,7 +73,7 @@ class App:
             if cmd.kind == "undo":
                 return self._undo(now)
             if cmd.kind == "free_text":
-                return "I did not understand that. Say 'help' to see what I can do."
+                return self._free_text(cmd, now)
             return f"'{cmd.kind}' is not set up yet."
         except ApprovalError as exc:
             return str(exc)
@@ -114,3 +117,14 @@ class App:
         if row is None:
             return "There is nothing to undo."
         return approvals.undo(self.conn, row["id"], self.executors, now=now)
+
+    # ---- free text ---------------------------------------------------
+    def _free_text(self, cmd: Command, now: datetime) -> str:
+        """Ask the model what she meant, then run it through the same handlers a typed command uses."""
+        from .handlers import local_date
+        today = local_date(self, now)
+        titles = [t["title"] for t in planner.tasks_on(self.conn, today, include_done=False)]
+        intent = intents.interpret(self.model, cmd.text, today, titles)
+        if intent.command is None or intent.command.kind == "free_text":
+            return intent.ask or "I did not understand that. Say 'help' to see what I can do."
+        return self._reply(intent.command, now)
