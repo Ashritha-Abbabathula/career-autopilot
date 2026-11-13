@@ -1,0 +1,8 @@
+out/
+data/paste/
+data/*.sqlite
+*.sqlite
+__pycache__/
+*.pyc
+.env
+.venv/

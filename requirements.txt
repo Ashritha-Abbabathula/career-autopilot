@@ -1,0 +1,6 @@
+# Slice CA-1 uses only the Python standard library.
+# Later slices will add (each with a note in DECISIONS.md when added):
+#   fastapi, uvicorn   (WhatsApp webhook)
+#   httpx              (Gemini and WhatsApp HTTP calls)
+#   openpyxl           (Excel export)
+#   pyyaml             (facts file)
