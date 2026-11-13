@@ -11,7 +11,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -98,6 +98,38 @@ CREATE TABLE IF NOT EXISTS model_calls (
   output_tokens INTEGER NOT NULL DEFAULT 0,
   ok INTEGER NOT NULL DEFAULT 1
 );
+
+-- added in schema version 2
+CREATE TABLE IF NOT EXISTS outbox (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  to_number TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'reply' CHECK (kind IN ('reply','proactive')),
+  body TEXT NOT NULL,
+  template_name TEXT,
+  send_after TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued','sent','blocked_paused','blocked_budget','blocked_window','failed')),
+  sent_at TEXT,
+  error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS plan_changes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  before_json TEXT NOT NULL,
+  after_json TEXT NOT NULL,
+  undone INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  due_date TEXT NOT NULL,
+  text TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'manual',
+  done INTEGER NOT NULL DEFAULT 0
+);
 """
 
 # Allowed approval moves. 'undone' is only reachable from 'approved'.
@@ -127,6 +159,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
     if conn.execute("SELECT COUNT(*) FROM schema_version").fetchone()[0] == 0:
         conn.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+    else:  # an older database: the new tables were just created above, so record the new version
+        conn.execute("UPDATE schema_version SET version = ? WHERE version < ?", (SCHEMA_VERSION, SCHEMA_VERSION))
     conn.commit()
 
 

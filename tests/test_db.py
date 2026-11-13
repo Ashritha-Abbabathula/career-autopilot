@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from ca import db
 
 EXPECTED_TABLES = {"schema_version", "settings", "tasks", "events", "applications",
-                   "facts", "approvals", "messages", "model_calls"}
+                   "facts", "approvals", "messages", "model_calls", "outbox", "plan_changes", "reminders"}
 
 
 def fresh():
@@ -26,6 +26,13 @@ class SchemaTests(unittest.TestCase):
         db.init_schema(conn)
         self.assertEqual(db.get_setting(conn, "k"), "v")
         self.assertEqual(conn.execute("SELECT COUNT(*) FROM schema_version").fetchone()[0], 1)
+
+    def test_version_two_and_old_database_is_upgraded(self):
+        conn = fresh()
+        self.assertEqual(conn.execute("SELECT version FROM schema_version").fetchone()[0], db.SCHEMA_VERSION)
+        conn.execute("UPDATE schema_version SET version = 1")
+        db.init_schema(conn)
+        self.assertEqual(conn.execute("SELECT version FROM schema_version").fetchone()[0], db.SCHEMA_VERSION)
 
     def test_bad_status_is_rejected_by_the_database(self):
         conn = fresh()
