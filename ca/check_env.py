@@ -9,11 +9,10 @@ from .config import Config, load_config
 # (label, attribute, needed from which slice / for what)
 CHECKS = [
     ("GEMINI_API_KEY", "gemini_api_key", "the model (slice CA-5)"),
-    ("WHATSAPP_TOKEN", "whatsapp_token", "sending WhatsApp messages (CA-7)"),
-    ("WHATSAPP_PHONE_ID", "whatsapp_phone_number_id", "sending WhatsApp messages (CA-7)"),
-    ("WHATSAPP_APP_SECRET", "whatsapp_app_secret", "checking incoming WhatsApp messages are really from Meta (CA-7)"),
-    ("WHATSAPP_VERIFY_TOKEN", "whatsapp_verify_token", "Meta's webhook handshake (CA-7)"),
-    ("OWNER_WHATSAPP", "owner_whatsapp", "the only number the bot will talk to (CA-7)"),
+    ("TELEGRAM_BOT_TOKEN", "telegram_bot_token", "sending and receiving Telegram messages (CA-7)"),
+    ("TELEGRAM_OWNER_CHAT_ID", "telegram_owner_chat_id", "the only chat the bot will talk to (CA-7)"),
+    ("LEETCODE_USER", "leetcode_user", "LeetCode reminders (CA-6)"),
+    ("GITHUB_USER", "github_user", "GitHub reminders (CA-6)"),
 ]
 
 

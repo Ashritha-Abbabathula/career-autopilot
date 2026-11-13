@@ -11,7 +11,9 @@ import re
 from dataclasses import dataclass, fields
 from typing import Mapping, Optional
 
-SECRET_FIELDS = {"gemini_api_key", "whatsapp_token", "whatsapp_app_secret", "whatsapp_verify_token"}
+SECRET_FIELDS = {"gemini_api_key", "whatsapp_token", "whatsapp_app_secret", "whatsapp_verify_token", "telegram_bot_token"}
+# Not secret, but personal: shown only as set or missing.
+PERSONAL_FIELDS = {"owner_whatsapp", "telegram_owner_chat_id", "leetcode_user", "github_user", "private_dir"}
 
 
 def parse_env_file(text: str) -> dict:
@@ -55,6 +57,12 @@ class Config:
     timezone: str = "Asia/Kolkata"
     quiet_start: int = 23
     quiet_end: int = 7
+    telegram_bot_token: str = ""
+    telegram_owner_chat_id: str = ""
+    private_dir: str = "../notebooks/09-career-autopilot"
+    leetcode_user: str = ""
+    github_user: str = ""
+    daily_proactive_cap: int = 8
 
     def redacted(self) -> dict:
         """Settings safe to log: secrets become 'set' or 'missing', nothing partial."""
@@ -63,7 +71,7 @@ class Config:
             value = getattr(self, f.name)
             if f.name in SECRET_FIELDS:
                 out[f.name] = "set" if value else "missing"
-            elif f.name == "owner_whatsapp":
+            elif f.name in PERSONAL_FIELDS:
                 out[f.name] = "set" if value else "missing"
             else:
                 out[f.name] = value
@@ -72,6 +80,10 @@ class Config:
     @property
     def gemini_ready(self) -> bool:
         return bool(self.gemini_api_key)
+
+    @property
+    def telegram_ready(self) -> bool:
+        return bool(self.telegram_bot_token and self.telegram_owner_chat_id)
 
 
 def load_config(env: Optional[Mapping[str, str]] = None, env_file: Optional[str] = ".env") -> Config:
@@ -98,4 +110,10 @@ def load_config(env: Optional[Mapping[str, str]] = None, env_file: Optional[str]
         timezone=values.get("TIMEZONE", "") or defaults.timezone,
         quiet_start=_int(values, "QUIET_START", defaults.quiet_start),
         quiet_end=_int(values, "QUIET_END", defaults.quiet_end),
+        telegram_bot_token=values.get("TELEGRAM_BOT_TOKEN", "").strip(),
+        telegram_owner_chat_id=re.sub(r"[^0-9-]", "", values.get("TELEGRAM_OWNER_CHAT_ID", "")),
+        private_dir=values.get("CA_PRIVATE_DIR", "") or defaults.private_dir,
+        leetcode_user=values.get("LEETCODE_USER", "").strip(),
+        github_user=values.get("GITHUB_USER", "").strip(),
+        daily_proactive_cap=_int(values, "DAILY_PROACTIVE_CAP", defaults.daily_proactive_cap),
     )
