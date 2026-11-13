@@ -92,3 +92,14 @@ def make_executor(folder, today_fn: Callable[[], date]) -> Callable[[dict], str]
         path.write_text(f"{payload['to_note']}\nSubject: {payload['subject']}\n\n{text}\n", encoding="utf-8")
         return f"Saved as {path.name}. Copy it into your own mail and send it yourself; I never send."
     return save
+
+
+def select_targets(csv_path, limit: int = 5) -> list:
+    """Rows the owner has marked 'verified' (faculty and openings checked) and that have no draft yet."""
+    import csv
+    path = Path(csv_path)
+    if not path.is_file():
+        return []
+    with path.open(newline="", encoding="utf-8-sig") as fh:
+        rows = [r for r in csv.DictReader(fh) if (r.get("status") or "").strip().lower() == "verified"]
+    return rows[:limit]

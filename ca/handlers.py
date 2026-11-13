@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from . import clock as clk
-from . import approvals, deadlines, planner, replan, tracker, digest as digest_mod, triage as triage_mod
+from . import approvals, deadlines, planner, replan, tracker, digest as digest_mod, leetcode, scorecard as scorecard_mod, triage as triage_mod
 
 
 def local_date(app, now: datetime):
@@ -72,7 +72,15 @@ def digest(app, cmd, now: datetime) -> str:
     return digest_mod.build_digest(app.conn, app.private_dir, local_date(app, now))
 
 
+def scorecard(app, cmd, now: datetime) -> str:
+    stats = leetcode.fetch_stats(app.http, app.leetcode_user, now) if app.http else None
+    from pathlib import Path
+    sent = scorecard_mod.outreach_sent(Path(app.private_dir)) if app.private_dir else None
+    return scorecard_mod.build(app.conn, local_date(app, now), stats.solved_total if stats else None, sent)
+
+
 def register_all(app) -> None:
+    app.register("scorecard", scorecard)
     app.register("digest", digest)
     app.register("triage", triage)
     app.register("done", done)

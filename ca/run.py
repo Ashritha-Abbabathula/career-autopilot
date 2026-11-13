@@ -9,8 +9,12 @@ from __future__ import annotations
 import sys
 import time
 
-from . import db, handlers
+from datetime import date
+from pathlib import Path
+
+from . import db, handlers, outreach
 from .app import App
+from .approvals import Executors
 from .clock import SystemClock
 from .config import load_config
 from .http import UrllibHttp
@@ -30,7 +34,9 @@ def main() -> int:
     http, clock = UrllibHttp(), SystemClock()
     model = (GeminiModel(cfg.gemini_api_key, cfg.gemini_models, http, conn, cfg.model_daily_call_cap)
              if cfg.gemini_ready else NoModel())
-    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model, private_dir=cfg.private_dir)
+    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model, private_dir=cfg.private_dir, http=http,
+              leetcode_user=cfg.leetcode_user,
+              executors=Executors(run={"email_draft": outreach.make_executor(Path(cfg.private_dir) / "tracker" / "outreach_drafts", date.today)}))
     handlers.register_all(app)
     sender = TelegramSender(http, cfg.telegram_bot_token, cfg.telegram_owner_chat_id)
     for note in bootstrap(app, cfg):

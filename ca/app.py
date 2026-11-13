@@ -34,11 +34,13 @@ Handler = Callable[["App", Command, datetime], str]
 
 class App:
     def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata",
-                 model=None, private_dir: str = ""):
+                 model=None, private_dir: str = "", http=None, leetcode_user: str = ""):
         self.conn = conn
         self.owner = owner
         self.tz_name = tz_name
         self.private_dir = private_dir
+        self.http = http
+        self.leetcode_user = leetcode_user
         self.model = model or NoModel()
         self.executors = executors or Executors()
         self.handlers: Dict[str, Handler] = {}
