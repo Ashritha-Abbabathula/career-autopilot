@@ -35,6 +35,26 @@ def plan_info(conn) -> dict:
         return {}
 
 
+def load_history(conn) -> dict:
+    """Past activity saved by the daily history job: {"leetcode": {day: n}, "github": {day: n}}."""
+    try:
+        data = json.loads(db.get_setting(conn, "history_json", "") or "{}")
+        return data if isinstance(data, dict) else {}
+    except ValueError:
+        return {}
+
+
+def save_history(conn, leetcode_days, github_days) -> None:
+    """Merge newly read days into what is saved; a failed read (None) keeps what we already had."""
+    data = load_history(conn)
+    for name, days in (("leetcode", leetcode_days), ("github", github_days)):
+        if days:
+            merged = dict(data.get(name, {}))
+            merged.update(days)
+            data[name] = merged
+    db.set_setting(conn, "history_json", json.dumps(data))
+
+
 def collect(conn, start: date, end: date, today: date) -> Dict[str, List[dict]]:
     """Everything on each day between start and end, as plain dicts the page can use."""
     days: Dict[str, List[dict]] = {}
@@ -57,6 +77,12 @@ def collect(conn, start: date, end: date, today: date) -> Dict[str, List[dict]]:
         if t["kind"] == "ok" and t["status"] in ("done", "skipped"):
             item["dec"] = "approve" if t["status"] == "done" else "skip"
         add(t["planned_date"], item)
+    hist = load_history(conn)
+    for source, label, unit in (("leetcode", "LeetCode", "submission"), ("github", "GitHub", "commit")):
+        for day, count in sorted(hist.get(source, {}).items()):
+            if start.isoformat() <= day <= min(end, today).isoformat() and count:
+                add(day, {"id": f"h-{source}-{day}", "stream": "hist", "done": True,
+                          "title": f"{label}: {count} {unit}{'s' if count != 1 else ''}"})
     n = 0
     for d in deadlines.upcoming(conn, start, days=(end - start).days):
         if d.source != "next_action" or d.due >= today:
@@ -81,14 +107,27 @@ def span(conn, today: date):
         start, end = date.fromisoformat(info["start"]), date.fromisoformat(info["end"])
     except (KeyError, ValueError):
         start, end = today.replace(day=1), today + timedelta(days=120)
+    hist = load_history(conn)
+    past = [d for source in hist.values() for d in source if isinstance(d, str)]
+    if past:                                           # show earlier months too, back to the first day of recorded activity
+        try:
+            earliest = date.fromisoformat(min(past))
+            start = min(start, earliest.replace(day=1))
+        except ValueError:
+            pass
     return min(start, today), max(end, today)
 
 
-def write(conn, path, today: date, start: date = None, end: date = None) -> Path:
-    s, e = span(conn, today)
+def write(conn, path, today: date, start: date = None, end: date = None, private_dir: str = "") -> Path:
+    """Save the calendar as a file. With the owner's original page in the private folder, that page is the file."""
+    from . import original_page
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(conn, today, start or s, end or e), encoding="utf-8")
+    html = original_page.render(conn, private_dir, today) if private_dir else None
+    if html is None:
+        s, e = span(conn, today)
+        html = render(conn, today, start or s, end or e)
+    out.write_text(html, encoding="utf-8")
     return out
 
 
@@ -169,8 +208,8 @@ h1{margin:0;font-size:18px}.sub{margin:4px 0 8px;color:var(--muted);font-size:13
 <script>
 const D=__DATA__;
 const SERVER=location.protocol==="http:"||location.protocol==="https:";
-const COL={dsa:"#2b5fd9",yt:"#8a55c8",gate:"#2a9d8f",college:"#6b6f76",fat:"#c8472b",ok:"#d9822b",touch:"#d4537e",info:"#8a8a8a",due:"#7d3c98"};
-const NAME={dsa:"LeetCode",yt:"YouTube",gate:"GATE",college:"College",fat:"FAT exam",ok:"Needs your OK",touch:"Needs you",info:"Date to know",due:"Deadline"};
+const COL={dsa:"#2b5fd9",yt:"#8a55c8",gate:"#2a9d8f",college:"#6b6f76",fat:"#c8472b",ok:"#d9822b",touch:"#d4537e",info:"#8a8a8a",due:"#7d3c98",hist:"#3b8f5a"};
+const NAME={dsa:"LeetCode",yt:"YouTube",gate:"GATE",college:"College",fat:"FAT exam",ok:"Needs your OK",touch:"Needs you",info:"Date to know",due:"Deadline",hist:"Past activity"};
 const MN=["January","February","March","April","May","June","July","August","September","October","November","December"],WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 let st={done:{},dec:{}};
@@ -195,7 +234,7 @@ function bars(){
   let pn=0,pt=0;for(const k in D.byDate)for(const it of D.byDate[k])if(it.stream==="college"){pt++;if(isDone(it))pn++}
   h+='<div><span>FAT prep<b>'+pn+'/'+pt+'</b></span><div class="bar"><i style="width:'+(pt?100*pn/pt:0)+'%;background:'+COL.college+'"></i></div></div>';
   $("bars").innerHTML=h}
-function legend(){$("legend").innerHTML=["dsa","gate","yt","college","fat","ok","touch","info","due"].map(s=>'<span><i style="background:'+COL[s]+'"></i>'+NAME[s]+'</span>').join("")}
+function legend(){$("legend").innerHTML=["dsa","gate","yt","college","fat","ok","touch","info","due","hist"].map(s=>'<span><i style="background:'+COL[s]+'"></i>'+NAME[s]+'</span>').join("")}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function render(){
   const cal=$("cal");cal.innerHTML="";const a=new Date(D.start+"T00:00:00"),b=new Date(D.end+"T00:00:00");
@@ -221,7 +260,7 @@ function openDay(k){
   const its=D.byDate[k]||[];const dd=new Date(k+"T00:00:00");
   let h='<button class="xx" onclick="closeS()" aria-label="Close">&times;</button><h3>'+WD[dd.getDay()]+" "+dd.getDate()+" "+MN[dd.getMonth()]+'</h3><p class="sub">'+(its.length?its.length+" items":"Free day")+'</p>';
   for(const it of its){
-    const locked=(it.stream==="ok"||(SERVER&&it.id[0]!=="t"));
+    const locked=(it.stream==="ok"||it.stream==="hist"||(SERVER&&it.id[0]!=="t"));
     h+='<div class="it"><label><input type="checkbox" '+(isDone(it)?"checked":"")+' data-id="'+it.id+'" '+(locked?"disabled":"")+'><span><span class="tag" style="background:'+COL[it.stream]+'">'+NAME[it.stream]+'</span>'+esc(it.title)+'</span></label>';
     if(it.link)h+='<div class="det"><a href="'+esc(it.link)+'" target="_blank" rel="noopener">Open problem</a></div>';
     if(it.links&&it.links.length)h+='<div class="det">'+it.links.map(l=>'<a href="'+esc(l[1])+'" target="_blank" rel="noopener">'+esc(l[0])+'</a>').join(" &middot; ")+'</div>';

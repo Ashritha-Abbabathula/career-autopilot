@@ -22,6 +22,7 @@ class Job:
 
 JOBS = [
     Job("rollover", 5, 0, 600),          # runs before the morning card, and silently
+    Job("history_sync", 5, 30, 600),     # reads your public LeetCode and GitHub history for the calendar
     Job("tracker_sync", 6, 30, 600),     # silently keeps the tracker CSV and the database in step
     Job("morning_card", 7, 30, 240),
     Job("digest", 9, 0, 180),

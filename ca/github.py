@@ -34,3 +34,24 @@ def fetch_stats(http, user: str, now: Optional[datetime] = None) -> Optional[Git
     except (ValueError, KeyError, TypeError, AttributeError):
         return None
     return GitHubStats(pushes, commits)
+
+
+def fetch_history(http, user: str):
+    """Days with pushes in the last stretch GitHub's public events cover (about 90 days):
+    {YYYY-MM-DD: commits}. Returns None if it cannot be read."""
+    if not user:
+        return None
+    status, text = http.request("GET", f"https://api.github.com/users/{user}/events/public?per_page=100",
+                                headers={"Accept": "application/vnd.github+json"}, timeout=20)
+    if status != 200:
+        return None
+    try:
+        days = {}
+        for e in json.loads(text):
+            if e.get("type") != "PushEvent":
+                continue
+            day = datetime.fromisoformat(e["created_at"].replace("Z", "+00:00")).date().isoformat()
+            days[day] = days.get(day, 0) + len(e.get("payload", {}).get("commits", []))
+        return days
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return None

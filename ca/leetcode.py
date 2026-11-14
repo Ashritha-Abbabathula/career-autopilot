@@ -37,3 +37,24 @@ def fetch_stats(http, user: str, now: Optional[datetime] = None) -> Optional[Lee
     solved_today = sum(int(n) for ts, n in calendar.items()
                        if datetime.fromtimestamp(int(ts), timezone.utc).date() == today)
     return LeetCodeStats(total, solved_today, streak)
+
+
+def fetch_history(http, user: str):
+    """Days with LeetCode activity: {YYYY-MM-DD: submissions}. The site's own calendar counts submissions,
+    not distinct problems, so the page says 'submissions'. Returns None if it cannot be read."""
+    if not user:
+        return None
+    status, text = http.request("POST", URL, headers={"Referer": "https://leetcode.com"},
+                                body={"query": QUERY, "variables": {"u": user}}, timeout=20)
+    if status != 200:
+        return None
+    try:
+        data = json.loads(text)["data"]["matchedUser"]
+        calendar = json.loads(data["userCalendar"]["submissionCalendar"] or "{}")
+        days = {}
+        for ts, n in calendar.items():
+            day = datetime.fromtimestamp(int(ts), timezone.utc).date().isoformat()
+            days[day] = days.get(day, 0) + int(n)
+        return days
+    except (ValueError, KeyError, TypeError):
+        return None

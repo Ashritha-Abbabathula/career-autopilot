@@ -201,3 +201,71 @@ def week_text(conn, today: date, days: int = 7) -> str:
         tail = f" ({_fmt_minutes(minutes)})" if minutes else ""
         lines.append(f"{d.strftime('%a %d %b')}: " + ("; ".join(bits) if bits else "free") + tail)
     return "\n".join(lines)
+
+
+# ---- the original 90-day plan ---------------------------------------------------
+def _clean(text: str) -> str:
+    return (text or "").replace("\ufffd", "-").strip()
+
+
+def import_original(conn, sched: dict, items=None) -> dict:
+    """Load the schedule exactly as the owner's original 90-day page lays it out (read from that page's own
+    script): 60 LeetCode days, the YouTube list, 67 GATE days, college modules and the college events.
+    Ticks are not stored here: they come from the page's state (see uistate), so the two always agree.
+    items: the assistant's own dated items (needs-your-OK, only-you-can-do, dates to know)."""
+    conn.execute("DELETE FROM tasks WHERE source = 'plan'")
+    conn.execute("DELETE FROM tasks WHERE source = 'plan_item' AND status = 'todo'")
+    conn.execute("DELETE FROM events WHERE source = 'plan'")
+    counts = {"dsa": 0, "youtube": 0, "gate": 0, "college": 0, "events": 0, "items": 0}
+    subjects = [name for _, name in sched.get("GS", [])]
+    for day, titles in sched.get("EV", {}).items():
+        for title in titles:
+            conn.execute("INSERT INTO events (title, date, fixed, source) VALUES (?,?,1,'plan')", (_clean(title), day))
+            counts["events"] += 1
+    for day, q in sched.get("dp", {}).items():
+        for pid, title in sched["DAYS"][q][1]:
+            _add_task(conn, f"LeetCode {pid}: {_clean(title)}", "dsa", D(day), 40,
+                      meta={"key": str(pid), "link": "https://leetcode.com/problemset/?search=" + str(pid)})
+            counts["dsa"] += 1
+    for day, p in sched.get("plan", {}).items():
+        y = sched["YT"][p]
+        _add_task(conn, _clean(y["t"]), "youtube", D(day), MINUTES["youtube"],
+                  meta={"key": f"y{p}", "links": y.get("l", [])})
+        counts["youtube"] += 1
+    for day, g in sched.get("mp", {}).items():
+        for j, (subject, title, video_min) in enumerate(sched["GD"][g]["it"]):
+            label = subjects[subject] if subject < len(subjects) else "GATE"
+            _add_task(conn, f"GATE {label}: {_clean(title)}", "gate", D(day), video_min or MINUTES["gate"],
+                      meta={"key": f"g{g}-{j}", "detail": f"{video_min} min of video" if video_min else "Practice and revision"})
+            counts["gate"] += 1
+    col, order = sched.get("COL", []), sched.get("ORD", [])
+    for day, modules in sched.get("cm", {}).items():
+        for i in modules:
+            course = col[order[i // 6]]
+            _add_task(conn, f"College: {course[1]}, module {i % 6 + 1}", "college", D(day), 60 // max(1, len(modules)),
+                      movable=0, meta={"key": f"c{i}", "detail": "Your own college study."})
+            counts["college"] += 1
+    for it in items or []:
+        _add_task(conn, it["title"], it.get("kind", "info"), D(it["date"]), movable=1, source="plan_item",
+                  meta={"detail": it["detail"]} if it.get("detail") else None)
+        counts["items"] += 1
+    conn.commit()
+    db.set_setting(conn, "plan_imported", "1")
+    db.set_setting(conn, "plan_schema", str(db.SCHEMA_VERSION))
+    db.set_setting(conn, "plan_origin", "original")
+    db.set_setting(conn, "plan_info", json.dumps({
+        "start": _page_date(sched["START"]).isoformat(),
+        "end": _page_date(sched["END"]).isoformat(), "base": {"dsa": 0, "youtube": 0, "gate": 0},
+        "totals": {"dsa": sum(len(d[1]) for d in sched["DAYS"]), "youtube": len(sched["YT"]), "gate": len(sched["GD"])}}))
+    from . import uistate
+    uistate.sync_tasks_from_state(conn)
+    return counts
+
+
+def D(text: str) -> date:
+    return date.fromisoformat(text)
+
+
+def _page_date(iso: str) -> date:
+    """The page's START and END come out of its script as UTC instants of local midnight (India, UTC+5:30)."""
+    return (datetime.fromisoformat(iso.replace("Z", "+00:00")) + timedelta(hours=5, minutes=30)).date()

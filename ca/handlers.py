@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import approvals, calendar_view, db, deadlines, leetcode, planner, replan, tracker
+from . import github as github_mod
 from . import clock as clk
 from . import digest as digest_mod
 from . import scorecard as scorecard_mod
@@ -146,7 +147,10 @@ def scorecard(app, cmd, now: datetime) -> str:
 def calendar(app, cmd, now: datetime) -> str:
     if not app.private_dir:
         return "I don't know where to save the calendar yet (CA_PRIVATE_DIR is not set)."
-    path = calendar_view.write(app.conn, Path(app.output_dir or app.private_dir) / "calendar" / "live_calendar.html", local_date(app, now))
+    if app.http:                                                  # refresh the past-activity days first
+        calendar_view.save_history(app.conn, leetcode.fetch_history(app.http, app.leetcode_user), github_mod.fetch_history(app.http, app.github_user))
+    path = calendar_view.write(app.conn, Path(app.output_dir or app.private_dir) / "calendar" / "live_calendar.html", local_date(app, now),
+                               private_dir=app.private_dir)
     app.attachments.append(("calendar.html", path.read_bytes(),
                             "Open this file in your browser. Ticks made there stay on your device; tell me 'done <task>' so I know too."))
     head = ("Calendar sent as a file. On the same computer as the bot you can also open http://localhost:8765/ "

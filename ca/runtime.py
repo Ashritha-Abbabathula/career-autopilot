@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 
 from . import clock as clk
-from . import calendar_view, db, digest, facts as facts_mod, replan, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
+from . import calendar_view, uistate, db, digest, facts as facts_mod, replan, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
 from .chat import step
 
 BUILDERS = {}          # extra jobs (for example the weekly scorecard) register a text builder here
-BUILT_IN = ("rollover", "tracker_sync", "digest", "calendar_refresh", "mentor", "linkedin_draft", "outreach_queue",
+BUILT_IN = ("history_sync", "rollover", "tracker_sync", "digest", "calendar_refresh", "mentor", "linkedin_draft", "outreach_queue",
             "scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
-QUIET_JOBS = ("rollover", "tracker_sync", "calendar_refresh")     # never message her
+QUIET_JOBS = ("history_sync", "rollover", "tracker_sync", "calendar_refresh")     # never message her
 FOCUS_ALLOWED = ("morning_card", "checkin")                      # the only messages that survive focus mode
 EXAM_WEEK_CAP = 5
 
@@ -24,6 +24,9 @@ def build_job_text(name, conn, http, cfg, now, today, app=None):
     """Text for a due job, or None when there is nothing worth saying."""
     if name == "rollover":
         replan.rollover(conn, today, now)
+        return None
+    if name == "history_sync":
+        calendar_view.save_history(conn, leetcode.fetch_history(http, cfg.leetcode_user), github.fetch_history(http, cfg.github_user))
         return None
     if name == "tracker_sync":
         if cfg.private_dir:
@@ -46,7 +49,8 @@ def build_job_text(name, conn, http, cfg, now, today, app=None):
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
         return scorecard.build(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))
     if name == "calendar_refresh":
-        calendar_view.write(conn, Path(cfg.output_dir or cfg.private_dir) / "calendar" / "live_calendar.html", today)
+        calendar_view.write(conn, Path(cfg.output_dir or cfg.private_dir) / "calendar" / "live_calendar.html", today,
+                            private_dir=cfg.private_dir)
         return None                                       # silent: just keep the page fresh
     if name == "mentor":
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
@@ -77,6 +81,7 @@ def tick(app, sender, http, cfg, clock) -> list:
     """Queue every due job, then let the outbox send what the rules allow. Returns the job names handled."""
     now = clock.now()
     local = clk.local_now(clock, cfg.timezone)
+    uistate.sync_tasks_from_state(app.conn)
     handled = []
     focus = db.focus_active(app.conn, now)
     for name in scheduler.due_jobs(local, scheduler.load_done(app.conn, db)):
@@ -154,6 +159,13 @@ def bootstrap(app, cfg) -> list:
     notes = []
     private = Path(cfg.private_dir)
     plan, settings = private / "calendar" / "plan_data.json", private / "calendar" / "plan_settings.json"
+    original = private / "calendar" / "original_schedule.json"
+    if original.is_file() and db.get_setting(app.conn, "plan_origin") != "original":
+        import json as _json
+        items = _json.loads(settings.read_text(encoding="utf-8")).get("items", []) if settings.is_file() else []
+        counts = planner.import_original(app.conn, _json.loads(original.read_text(encoding="utf-8")), items)
+        notes.append(f"original 90-day plan imported ({counts['dsa']} LeetCode, {counts['gate']} GATE, {counts['youtube']} YouTube, {counts['college']} college items)")
+        plan = Path("/nonexistent")                     # the older import below must not run on top of it
     needs = db.get_setting(app.conn, "plan_imported") != "1"
     outdated = not needs and db.get_setting(app.conn, "plan_schema") != str(db.SCHEMA_VERSION)   # imported before links and progress were stored
     if (needs or outdated) and plan.is_file() and settings.is_file():

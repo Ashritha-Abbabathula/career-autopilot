@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Callable, Dict, Optional
 
-from . import approvals, db, intents, outbox, planner
+from . import approvals, db, intents, outbox, planner, uistate
 from .approvals import ApprovalError, Executors
 from .llm import NoModel
 from .router import Command, parse
@@ -38,7 +38,7 @@ Handler = Callable[["App", Command, datetime], str]
 
 class App:
     def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata",
-                 model=None, private_dir: str = "", http=None, leetcode_user: str = "", output_dir: str = ""):
+                 model=None, private_dir: str = "", http=None, leetcode_user: str = "", output_dir: str = "", github_user: str = ""):
         self.conn = conn
         self.owner = owner
         self.tz_name = tz_name
@@ -47,6 +47,7 @@ class App:
         self.attachments = []                  # (filename, bytes, caption) to send as files after the reply
         self.http = http
         self.leetcode_user = leetcode_user
+        self.github_user = github_user
         self.model = model or NoModel()
         self.executors = executors or Executors()
         self.handlers: Dict[str, Handler] = {}
@@ -57,6 +58,7 @@ class App:
     # ---- entry point -------------------------------------------------
     def handle(self, raw: str, now: datetime, channel: str = "chat") -> str:
         """Log the message, work out the reply, queue it, and return its text."""
+        uistate.sync_tasks_from_state(self.conn)               # ticks made on the calendar page count
         db.add_message(self.conn, "in", raw or "", channel=channel, now=now)
         reply = self._reply(parse(raw), now)
         outbox.enqueue(self.conn, self.owner, reply, "reply", now=now)

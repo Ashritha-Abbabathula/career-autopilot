@@ -11,7 +11,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -123,6 +123,9 @@ CREATE TABLE IF NOT EXISTS plan_changes (
   after_json TEXT NOT NULL,
   undone INTEGER NOT NULL DEFAULT 0
 );
+
+-- added in schema version 4: everything the calendar page remembers (ticks, notes, Pomodoro log, photos)
+CREATE TABLE IF NOT EXISTS ui_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
 CREATE TABLE IF NOT EXISTS reminders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

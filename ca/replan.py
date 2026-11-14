@@ -10,7 +10,7 @@ import re
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
-from . import planner
+from . import planner, uistate
 
 KIND_WORDS = {
     "leetcode": "dsa", "lc": "dsa", "dsa": "dsa", "problem": "dsa", "problems": "dsa",
@@ -105,6 +105,7 @@ def _names(rows, limit: int = 4) -> str:
 def done(conn, query: str, today: date, now: Optional[datetime] = None) -> str:
     rows = _need(conn, query, today)
     _apply(conn, "done", [r["id"] for r in rows], now, status="done")
+    uistate.mirror_tasks_to_state(conn, [r["id"] for r in rows])      # the calendar page shows it ticked too
     left = planner.study_minutes(conn, today)
     tail = f" Study time left today: {planner._fmt_minutes(left)}." if left else " That is everything for today."
     return f"Marked done: {_names(rows)}." + tail
@@ -197,5 +198,6 @@ def undo_last(conn) -> Optional[str]:
                      (item["planned_date"], item["status"], item["id"]))
     conn.execute("UPDATE plan_changes SET undone = 1 WHERE id = ?", (row["id"],))
     conn.commit()
+    uistate.mirror_tasks_to_state(conn, [item["id"] for item in before])
     n = len(before)
     return f"Undone: put {n} item{'s' if n != 1 else ''} back as before."

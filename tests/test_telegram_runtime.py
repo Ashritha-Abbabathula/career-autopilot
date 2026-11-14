@@ -127,7 +127,7 @@ class TickTests(unittest.TestCase):
 
     def test_outside_a_job_window_nothing_happens(self):
         handled = runtime.tick(self.app, self.sender, FakeHttp(), cfg(), self.clock_at_ist(14, 0))
-        self.assertTrue(set(handled) <= {"rollover", "tracker_sync", "calendar_refresh", "digest"})   # only silent jobs, no message
+        self.assertTrue(set(handled) <= {"rollover", "tracker_sync", "calendar_refresh", "digest", "history_sync"})   # only silent jobs, no message
         self.assertEqual(self.sender.sent, [])
 
 

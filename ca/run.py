@@ -46,13 +46,13 @@ def main() -> int:
     model = (GeminiModel(cfg.gemini_api_key, cfg.gemini_models, http, conn, cfg.model_daily_call_cap)
              if cfg.gemini_ready else NoModel())
     app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model, private_dir=cfg.private_dir, output_dir=cfg.output_dir, http=http,
-              leetcode_user=cfg.leetcode_user,
+              leetcode_user=cfg.leetcode_user, github_user=cfg.github_user,
               executors=Executors(run={"email_draft": outreach.make_executor(Path(cfg.output_dir or cfg.private_dir) / "tracker" / "outreach_drafts", date.today)}))
     handlers.register_all(app)
     sender = TelegramSender(http, cfg.telegram_bot_token, cfg.telegram_owner_chat_id)
     if cfg.calendar_port:
         try:
-            calendar_server.start(cfg.db_path, cfg.timezone, cfg.calendar_port)
+            calendar_server.start(cfg.db_path, cfg.timezone, cfg.calendar_port, cfg.private_dir)
             print(f"Calendar page: http://localhost:{cfg.calendar_port}/ (this computer only)")
         except OSError:
             print("Calendar page could not start (port busy); the saved file still works.")
