@@ -122,7 +122,8 @@ class PageTests(unittest.TestCase):
         self.assertIn("function cell(d)", html)                                         # her own code is still there
         self.assertIn("render();disp();rn();", html)
         self.assertIn("Bring in my ticks, notes and Pomodoro log from my old page", html)       # import from the old page
-        self.assertIn("copy(JSON.stringify(localStorage))", html)
+        self.assertIn("export-old-plan-data.html", html)
+        self.assertIn('type="file" id="ximpfile"', html)
         self.assertEqual(html.count("</script>"), 3)
 
     def test_a_changed_page_is_noticed(self):
