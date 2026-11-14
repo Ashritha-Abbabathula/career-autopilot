@@ -12,7 +12,7 @@ import time
 from datetime import date
 from pathlib import Path
 
-from . import db, handlers, outreach
+from . import calendar_server, db, handlers, outreach
 from .app import App
 from .approvals import Executors
 from .clock import SystemClock
@@ -49,6 +49,12 @@ def main() -> int:
               executors=Executors(run={"email_draft": outreach.make_executor(Path(cfg.private_dir) / "tracker" / "outreach_drafts", date.today)}))
     handlers.register_all(app)
     sender = TelegramSender(http, cfg.telegram_bot_token, cfg.telegram_owner_chat_id)
+    if cfg.calendar_port:
+        try:
+            calendar_server.start(cfg.db_path, cfg.timezone, cfg.calendar_port)
+            print(f"Calendar page: http://localhost:{cfg.calendar_port}/ (this computer only)")
+        except OSError:
+            print("Calendar page could not start (port busy); the saved file still works.")
     for note in bootstrap(app, cfg):
         print(note)
     mode = "with model" if cfg.gemini_ready else "no model key: fixed commands only"

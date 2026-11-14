@@ -11,7 +11,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo','done','skipped','moved')),
   movable INTEGER NOT NULL DEFAULT 1,
   source TEXT NOT NULL DEFAULT 'manual',
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  meta TEXT NOT NULL DEFAULT ''                 -- JSON: link, links, detail (added in schema version 3)
 );
 
 CREATE TABLE IF NOT EXISTS events (
@@ -148,8 +149,10 @@ def connect(path: str) -> sqlite3.Connection:
     if path != ":memory:":
         folder = os.path.dirname(os.path.abspath(path))
         os.makedirs(folder, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=10)           # the bot and the calendar page share the file
     conn.row_factory = sqlite3.Row
+    if path != ":memory:":
+        conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -157,6 +160,8 @@ def connect(path: str) -> sqlite3.Connection:
 def init_schema(conn: sqlite3.Connection) -> None:
     """Create all tables. Safe to run many times."""
     conn.executescript(SCHEMA)
+    if "meta" not in {r["name"] for r in conn.execute("PRAGMA table_info(tasks)")}:      # database from before version 3
+        conn.execute("ALTER TABLE tasks ADD COLUMN meta TEXT NOT NULL DEFAULT ''")
     if conn.execute("SELECT COUNT(*) FROM schema_version").fetchone()[0] == 0:
         conn.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
     else:  # an older database: the new tables were just created above, so record the new version

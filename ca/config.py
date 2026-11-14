@@ -63,6 +63,7 @@ class Config:
     leetcode_user: str = ""
     github_user: str = ""
     daily_proactive_cap: int = 8
+    calendar_port: int = 8765
 
     def redacted(self) -> dict:
         """Settings safe to log: secrets become 'set' or 'missing', nothing partial."""
@@ -116,4 +117,5 @@ def load_config(env: Optional[Mapping[str, str]] = None, env_file: Optional[str]
         leetcode_user=values.get("LEETCODE_USER", "").strip(),
         github_user=values.get("GITHUB_USER", "").strip(),
         daily_proactive_cap=_int(values, "DAILY_PROACTIVE_CAP", defaults.daily_proactive_cap),
+        calendar_port=_int(values, "CALENDAR_PORT", defaults.calendar_port),
     )

@@ -33,10 +33,11 @@ def _days(a: date, b: date):
         d += timedelta(days=1)
 
 
-def _add_task(conn, title, kind, day: date, minutes=0, movable=1, source="plan"):
+def _add_task(conn, title, kind, day: date, minutes=0, movable=1, source="plan", meta=None):
     conn.execute(
-        "INSERT INTO tasks (title, kind, planned_date, minutes, movable, source, created_at) VALUES (?,?,?,?,?,?,?)",
-        (title, kind, day.isoformat(), minutes, movable, source, datetime.now(timezone.utc).isoformat(timespec="seconds")))
+        "INSERT INTO tasks (title, kind, planned_date, minutes, movable, source, created_at, meta) VALUES (?,?,?,?,?,?,?,?)",
+        (title, kind, day.isoformat(), minutes, movable, source, datetime.now(timezone.utc).isoformat(timespec="seconds"),
+         json.dumps(meta, ensure_ascii=False) if meta else ""))
 
 
 def import_plan(conn, plan: dict, settings: dict, force: bool = False) -> dict:
@@ -62,7 +63,7 @@ def import_plan(conn, plan: dict, settings: dict, force: bool = False) -> dict:
     for day, what in settings.get("prep", {}).items():
         d = date.fromisoformat(day)
         if start <= d <= end:
-            _add_task(conn, what, "college", d, movable=0)
+            _add_task(conn, what, "college", d, movable=0, meta={"detail": "Your own college study."})
 
     dsa = plan.get("dsa", [])[progress.get("dsa_done", 0) + done["dsa"]:]
     before, after = settings.get("dsa_per_day_before_gate", 1), settings.get("dsa_per_day_after_gate", 3)
@@ -73,28 +74,36 @@ def import_plan(conn, plan: dict, settings: dict, force: bool = False) -> dict:
                 break
             p = dsa[i]
             i += 1
-            _add_task(conn, f"LeetCode {p['id']}: {p['title']}", "dsa", d, MINUTES["dsa"])
+            _add_task(conn, f"LeetCode {p['id']}: {p['title']}", "dsa", d, MINUTES["dsa"],
+                      meta={"link": "https://leetcode.com/problemset/?search=" + str(p["id"])})
             counts["dsa"] += 1
 
     yts = plan.get("youtube", [])[progress.get("youtube_done", 0) + done["youtube"]:]
     for d, y in zip(_days(max(gate_start, start), end), yts):
-        _add_task(conn, y["title"], "youtube", d, MINUTES["youtube"])
+        _add_task(conn, y["title"], "youtube", d, MINUTES["youtube"], meta={"links": y.get("links", [])})
         counts["youtube"] += 1
 
     gdays = plan.get("gate_days", [])[progress.get("gate_done", 0) + gate_days_done:]
     for d, g in zip(_days(max(gate_start, start), end), gdays):
         for it in g.get("items", []):
-            _add_task(conn, f"GATE {it['subject']}: {it['title']}", "gate", d, it.get("video_min") or MINUTES["gate"])
+            _add_task(conn, f"GATE {it['subject']}: {it['title']}", "gate", d, it.get("video_min") or MINUTES["gate"],
+                      meta={"detail": f"{it['video_min']} min of video" if it.get("video_min") else "Practice and revision"})
             counts["gate"] += 1
 
     for it in settings.get("items", []):
         d = date.fromisoformat(it["date"])
         if start <= d <= end:
-            _add_task(conn, it["title"], it.get("kind", "info"), d, movable=1, source="plan_item")
+            _add_task(conn, it["title"], it.get("kind", "info"), d, movable=1, source="plan_item",
+                      meta={"detail": it["detail"]} if it.get("detail") else None)
             counts["items"] += 1
 
     conn.commit()
     db.set_setting(conn, "plan_imported", "1")
+    db.set_setting(conn, "plan_info", json.dumps({
+        "start": settings["start"], "end": settings["end"],
+        "base": {"dsa": progress.get("dsa_done", 0), "youtube": progress.get("youtube_done", 0), "gate": progress.get("gate_done", 0)},
+        "totals": {"dsa": len(plan.get("dsa", [])), "youtube": len(plan.get("youtube", [])), "gate": len(plan.get("gate_days", []))}}))
+    db.set_setting(conn, "plan_schema", str(db.SCHEMA_VERSION))
     return counts
 
 

@@ -123,8 +123,10 @@ def bootstrap(app, cfg) -> list:
     notes = []
     private = Path(cfg.private_dir)
     plan, settings = private / "calendar" / "plan_data.json", private / "calendar" / "plan_settings.json"
-    if db.get_setting(app.conn, "plan_imported") != "1" and plan.is_file() and settings.is_file():
-        counts = planner.import_from_files(app.conn, plan, settings)
+    needs = db.get_setting(app.conn, "plan_imported") != "1"
+    outdated = not needs and db.get_setting(app.conn, "plan_schema") != str(db.SCHEMA_VERSION)   # imported before links and progress were stored
+    if (needs or outdated) and plan.is_file() and settings.is_file():
+        counts = planner.import_from_files(app.conn, plan, settings, force=outdated)
         notes.append(f"plan imported ({counts['dsa']} LeetCode, {counts['gate']} GATE, {counts['youtube']} YouTube items)")
     csv_path = private / "tracker" / "applications.csv"
     if not tracker.list_apps(app.conn) and csv_path.is_file():

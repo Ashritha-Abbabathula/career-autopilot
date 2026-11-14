@@ -143,7 +143,8 @@ def calendar(app, cmd, now: datetime) -> str:
     if not app.private_dir:
         return "I don't know where to save the calendar yet (CA_PRIVATE_DIR is not set)."
     path = calendar_view.write(app.conn, Path(app.private_dir) / "calendar" / "live_calendar.html", local_date(app, now))
-    head = f"Calendar rebuilt: {path}\nOpen it in your browser. Tap a day for the full list.\n\n"
+    head = (f"Calendar: http://localhost:8765/ (while the bot runs; ticks there are saved to me)\n"
+            f"Offline copy rebuilt: {path}\n\n")
     return head + planner.week_text(app.conn, local_date(app, now))
 
 
