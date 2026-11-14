@@ -5,14 +5,17 @@ day. Your laptop can be asleep, off, or offline once the bot lives on a small cl
 without an internet connection somewhere; the point is that the connection is the server's, not yours.)
 
 ## What you need (about 20 minutes, once)
-1. **A small Ubuntu server.** Any one of these works; the bot needs very little (1 CPU, 1 GB):
-   - **Oracle Cloud "Always Free"** VM: free forever, but sign-up asks for a card for identity checks and some
-     Indian cards are refused.
-   - **Google Cloud** free `e2-micro` VM (a US region): free, card needed.
-   - **Any cheap VPS** (about Rs 300 to 500 a month): Hetzner, DigitalOcean, Contabo, and so on. Easiest and most reliable.
-   Choose Ubuntu 22.04 or 24.04. Create it, and note its address. Only you can create the account and pay;
-   I cannot and should not.
-2. **Connect to it** (the provider shows a "Connect" or "SSH" button; or `ssh ubuntu@ADDRESS` in PowerShell).
+1. **A small Ubuntu server.** The bot needs very little (1 CPU, 1 GB). Best choice for you:
+   - **Azure for Students** (azure.microsoft.com/en-in/free/students): gives students a USD 100 credit for 12 months
+     plus free-tier services such as 750 hours a month of a small Linux VM, and **no credit card is required**
+     (you verify with your VIT student email; check the sign-up page for the current terms). Create a Linux
+     virtual machine: image **Ubuntu Server 22.04 LTS**, size **B1s** (the free-tier size), authentication
+     **SSH public key** (let Azure generate one and download the file it gives you), leave the default
+     "SSH (22)" inbound rule. When it is created, note its public IP address.
+   - Other options: Oracle Cloud "Always Free" or Google Cloud `e2-micro` (both want a card), or any cheap VPS
+     (about Rs 300 to 500 a month).
+   Only you can create the account; I cannot and should not.
+2. **Connect to it.** On Azure: in PowerShell, `ssh -i C:\path\to\the-downloaded-key.pem azureuser@ADDRESS` (Azure's default user is `azureuser`; other providers use `ubuntu`).
 3. **Run the setup** (copy and paste; it asks for your details and keeps them on the server only):
 
    ```bash
