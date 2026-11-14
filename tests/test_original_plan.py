@@ -121,6 +121,8 @@ class PageTests(unittest.TestCase):
         self.assertNotIn("const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set", html.split("window.__STATE__")[1].split("</script>")[1])
         self.assertIn("function cell(d)", html)                                         # her own code is still there
         self.assertIn("render();disp();rn();", html)
+        self.assertIn("Bring in my ticks, notes and Pomodoro log from my old page", html)       # import from the old page
+        self.assertIn("copy(JSON.stringify(localStorage))", html)
         self.assertEqual(html.count("</script>"), 3)
 
     def test_a_changed_page_is_noticed(self):

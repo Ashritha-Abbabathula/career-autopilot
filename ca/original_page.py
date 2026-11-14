@@ -61,6 +61,16 @@ box.addEventListener("click",e=>{const t=e.target,id=t.dataset&&t.dataset.xid;if
 {const n=document.createElement("p");n.className="sub";n.style.margin="2px 0 0";
  n.textContent=XSRV?"Saved to the bot: your ticks, notes, Pomodoro time and photos are remembered by the assistant.":"Offline copy: changes stay in this browser. Ticks and notes made on the bot's own page are kept by the assistant.";
  const top=document.querySelector(".top");if(top)top.appendChild(n)}
+if(XSRV){const top=document.querySelector(".top");if(top){const d=document.createElement("details");d.style.margin="6px 0 0";
+ d.innerHTML='<summary style="cursor:pointer;font-size:13px;color:var(--acc)">Bring in my ticks, notes and Pomodoro log from my old page</summary>'
+  +'<p class="sub" style="margin:6px 0">1. Open your old 90-day-plan.html file in the browser you used before. 2. Press F12, open Console, paste this line and press Enter: <code>copy(JSON.stringify(localStorage))</code>. 3. Paste here and press Import.</p>'
+  +'<textarea id="ximp" rows="3" style="width:100%;box-sizing:border-box" placeholder="Paste here"></textarea><div style="margin-top:6px"><button class="btn" id="ximpgo">Import</button> <span id="ximpmsg" class="sub"></span></div>';
+ top.appendChild(d);
+ d.querySelector("#ximpgo").onclick=async()=>{const msg=d.querySelector("#ximpmsg");let o;try{o=JSON.parse(d.querySelector("#ximp").value)}catch(e){msg.textContent="That does not look like the copied text.";return}
+  if(!o||typeof o!=="object"){msg.textContent="That does not look like the copied text.";return}
+  const keys=Object.keys(o).filter(k=>typeof o[k]==="string");let ok=0;
+  for(const k of keys){try{await xpost("/api/state",{k:k,v:o[k]});ok++}catch(e){}}
+  msg.textContent="Imported "+ok+" of "+keys.length+" items. Reloading...";setTimeout(()=>location.reload(),900)}}}
 render();
 """
 
