@@ -116,3 +116,34 @@ class PullNotesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StateTravelTests(unittest.TestCase):
+    def test_state_exported_on_the_laptop_seeds_a_fresh_server_once(self):
+        from ca import uistate
+        src = db.connect(":memory:")
+        db.init_schema(src)
+        uistate.put(src, "dsa-done", json.dumps({"66": 1}))
+        uistate.put(src, "notes", json.dumps([{"t": "hello"}]))
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "calendar").mkdir()
+            self.assertEqual(uistate.export_state(src, Path(tmp) / "calendar" / "state_export.json"), 2)
+            fresh = db.connect(":memory:")
+            db.init_schema(fresh)
+            app = build_app(fresh)
+            cfg = config.load_config(env={"CA_PRIVATE_DIR": tmp, "TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_OWNER_CHAT_ID": "1"}, env_file=None)
+            self.assertTrue(any("calendar state loaded" in n for n in runtime.bootstrap(app, cfg)))
+            self.assertEqual(uistate.done_map(fresh), {"66": 1})
+            uistate.put(fresh, "dsa-done", json.dumps({"66": 1, "49": 1}))            # progress made on the server
+            self.assertFalse(any("calendar state loaded" in n for n in runtime.bootstrap(app, cfg)))
+            self.assertEqual(len(uistate.done_map(fresh)), 2)                          # the seed never overwrites a live database
+
+    def test_bad_files_are_ignored(self):
+        from ca import uistate
+        conn = db.connect(":memory:")
+        db.init_schema(conn)
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "s.json"
+            p.write_text("{not json", encoding="utf-8")
+            self.assertEqual(uistate.import_export_file(conn, p), 0)
+            self.assertEqual(uistate.import_export_file(conn, Path(tmp) / "missing.json"), 0)

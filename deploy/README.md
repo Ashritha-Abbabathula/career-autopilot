@@ -29,12 +29,10 @@ without an internet connection somewhere; the point is that the connection is th
    ```powershell
    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "ca\.run" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
    ```
-5. **Optional: keep what you already ticked.** The server starts fresh from your plan. To bring over today's ticks
-   and the tracker, stop the laptop bot first, then copy the file (replace ADDRESS and the user name):
-   ```powershell
-   scp C:\Users\jayag\OneDrive\Desktop\resume-projects\09-career-autopilot\data\ca.sqlite ubuntu@ADDRESS:~/career-autopilot-host/data/ca.sqlite
-   ```
-   and on the server: `sudo systemctl restart career-autopilot`.
+5. **Your ticks, notes and Pomodoro log come with you automatically.** They are saved in your private notes repo
+   (`calendar/state_export.json`), and a new server starts from them. To refresh that file right before moving,
+   run on your laptop (in the career-autopilot folder) `python scripts/export_state.py`, then commit and push your
+   notes repo (I can do that for you).
 
 Then send `help` in Telegram. The morning card, reminders, digest, mentor note and weekly drafts keep coming with
 your laptop shut.

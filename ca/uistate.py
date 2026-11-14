@@ -101,3 +101,23 @@ def mirror_tasks_to_state(conn, task_ids: Iterable[int]) -> None:
             touched = True
     if touched:
         put(conn, "dsa-done", json.dumps(done))
+
+
+def export_state(conn, path) -> int:
+    """Write everything the page remembers to a JSON file (your private notes repo carries it to a new server)."""
+    from pathlib import Path
+    data = snapshot(conn)
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps({"ui_state": data}, ensure_ascii=False), encoding="utf-8")
+    return len(data)
+
+
+def import_export_file(conn, path) -> int:
+    """Load a file written by export_state. Only used to start a fresh database, never to overwrite one."""
+    from pathlib import Path
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8")).get("ui_state", {})
+    except (OSError, ValueError, AttributeError):
+        return 0
+    return import_dump(conn, data) if isinstance(data, dict) else 0

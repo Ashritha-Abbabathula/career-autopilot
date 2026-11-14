@@ -159,6 +159,11 @@ def bootstrap(app, cfg) -> list:
     notes = []
     private = Path(cfg.private_dir)
     plan, settings = private / "calendar" / "plan_data.json", private / "calendar" / "plan_settings.json"
+    seed = private / "calendar" / "state_export.json"
+    if not uistate.snapshot(app.conn) and seed.is_file():            # a brand new server: start from the laptop's saved ticks and notes
+        n = uistate.import_export_file(app.conn, seed)
+        if n:
+            notes.append(f"calendar state loaded from the notes repo ({n} items)")
     original = private / "calendar" / "original_schedule.json"
     if original.is_file() and db.get_setting(app.conn, "plan_origin") != "original":
         import json as _json
