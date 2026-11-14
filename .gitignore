@@ -6,3 +6,7 @@ __pycache__/
 *.pyc
 .env
 .venv/
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+out/
