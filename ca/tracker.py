@@ -54,6 +54,30 @@ def find(conn, organisation: str, role_or_programme: str):
         (organisation.strip(), role_or_programme.strip())).fetchone()
 
 
+_STOP = {"the", "of", "and", "for", "a", "an", "in", "at", "to", "summer", "intern", "internship", "program", "programme", "2026", "2027", "fellowship", "research"}
+
+
+def _words(text: str) -> set:
+    return {w for w in "".join(c.lower() if c.isalnum() else " " for c in text or "").split() if w not in _STOP and len(w) > 2}
+
+
+def find_similar(conn, organisation: str, role_or_programme: str, link: str = ""):
+    """An existing row that is almost certainly the same opportunity: same link, or the same organisation
+    (one name contains the other, or they share a distinctive word) with overlapping role words."""
+    rows = conn.execute("SELECT * FROM applications").fetchall()
+    link = (link or "").strip().rstrip("/").lower()
+    for r in rows:
+        if link and (r["source_link"] or "").strip().rstrip("/").lower() == link:
+            return r
+    org, role = _words(organisation), _words(role_or_programme)
+    for r in rows:
+        same_org = org & _words(r["organisation"])
+        same_role = role & _words(r["role_or_programme"])
+        if same_org and (same_role or not role or not _words(r["role_or_programme"])):
+            return r
+    return None
+
+
 def update(conn, app_id: int, **fields) -> None:
     if get(conn, app_id) is None:
         raise KeyError(f"no application {app_id}")

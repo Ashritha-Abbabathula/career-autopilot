@@ -157,3 +157,38 @@ class ExamWeekCapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveCheckRegressionTests(unittest.TestCase):
+    """Problems found by running against the real plan, tracker and model."""
+
+    def test_same_opportunity_is_not_added_twice(self):
+        conn = loaded()
+        tracker.add(conn, "Science Academies (IAS/INSA/NASI)", "Summer Research Fellowship 2027", source_link="https://x.org/f")
+        self.assertIsNotNone(tracker.find_similar(conn, "Science Academies", "Summer Research Fellow", ""))     # same organisation
+        self.assertIsNotNone(tracker.find_similar(conn, "Other name", "Other role", "https://x.org/f/"))        # same link
+        self.assertIsNone(tracker.find_similar(conn, "Google", "SWE Intern", "https://g.com"))
+
+    def test_triage_prompt_carries_todays_date(self):
+        from ca import triage
+        model = FakeModel([json.dumps({"decision": "APPLY", "reason": "ok", "organisation": "O", "role": "R"})])
+        triage.triage(model, "a post", "2026-11-14")
+        self.assertIn("Today is 2026-11-14", model.prompts[0])
+
+    def test_closed_opportunities_stay_out_of_the_digest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tracker").mkdir()
+            (root / "tracker" / "opportunities.csv").write_text(
+                "id,name,deadline,decision,status\n1,Old thing,2026-07-01 (closed),WATCH,watching\n2,Open thing,unknown,APPLY,preparing\n",
+                encoding="utf-8")
+            names = [r["name"] for r in digest.open_opportunities(root, D("2026-11-14"))]
+        self.assertEqual(names, ["Open thing"])
+
+    def test_done_ticks_a_tracker_next_action_when_no_task_matches(self):
+        conn = loaded()
+        tracker.add(conn, "Google", "SWE Intern", next_action="confirm on the official page", next_action_date="2026-11-14")
+        app = build_app(conn)
+        reply = step(app, FakeSender(), at(14, 9), "done google")
+        self.assertIn("Cleared from your due list", reply)
+        self.assertEqual(tracker.get(conn, 1)["next_action"], "")

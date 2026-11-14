@@ -53,9 +53,22 @@ def _guard(fn):
     return wrapped
 
 
-@_guard
 def done(app, cmd, now: datetime) -> str:
-    return replan.done(app.conn, cmd.args["task"], local_date(app, now), now)
+    """Tick a planned task; if none matches, tick an application's next action instead."""
+    try:
+        return replan.done(app.conn, cmd.args["task"], local_date(app, now), now)
+    except replan.ReplanError as exc:
+        words = cmd.args["task"].lower()
+        hits = [r for r in tracker.list_apps(app.conn)
+                if r["next_action"] and (words in r["next_action"].lower() or words in r["organisation"].lower())]
+        if len(hits) == 1:
+            r = hits[0]
+            tracker.update(app.conn, r["id"], next_action="", next_action_date="")
+            sync_tracker(app)
+            return f"Done: {r['organisation']}: {r['next_action']}. Cleared from your due list."
+        if len(hits) > 1:
+            return "More than one next action matches. Say 'done' with more of the words."
+        return str(exc)
 
 
 @_guard
@@ -83,7 +96,7 @@ def undo(app, cmd, now: datetime) -> str:
 
 
 def triage(app, cmd, now: datetime) -> str:
-    verdict = triage_mod.triage(app.model, cmd.text)
+    verdict = triage_mod.triage(app.model, cmd.text, local_date(app, now).isoformat())
     row_id = triage_mod.add_to_tracker(app.conn, verdict, local_date(app, now).isoformat())
     if row_id:
         sync_tracker(app)

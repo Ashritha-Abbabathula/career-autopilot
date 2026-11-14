@@ -35,6 +35,9 @@ def open_opportunities(private: Path, today: date, days: int = 30, limit: int = 
             continue
         if (r.get("status") or "").lower() in ("applied", "closed", "rejected", "skipped"):
             continue
+        raw_deadline = (r.get("deadline") or "").lower()
+        if "closed" in raw_deadline or "expired" in raw_deadline:
+            continue
         d = deadlines.parse_date(r.get("deadline", ""))
         if d is not None and not (today <= d <= today + timedelta(days=days)):
             continue

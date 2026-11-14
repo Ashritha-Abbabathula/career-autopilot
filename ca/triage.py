@@ -31,6 +31,7 @@ Read the post below and reply with ONE JSON object and nothing else:
 {{"decision": "APPLY" or "MAYBE" or "WATCH" or "SKIP", "reason": "one short sentence", "organisation": "", "role": "", "location": "", "deadline": "YYYY-MM-DD or empty"}}
 APPLY = clearly fits and is open; WATCH = fits but not open yet; MAYBE = unclear fit or missing details; SKIP = poor fit, wrong year or eligibility, or looks untrustworthy.
 Use only what the post says. Do not guess the organisation or deadline.
+Today is {today}. A deadline after today means it is still open; compare dates carefully.
 
 Post:
 {text}"""
@@ -57,14 +58,14 @@ def rule_check(text: str) -> Optional[str]:
     return None
 
 
-def triage(model: Model, text: str) -> Verdict:
+def triage(model: Model, text: str, today: str = "") -> Verdict:
     text = (text or "").strip()
     link = (URL.search(text) or [""])[0] if URL.search(text) else ""
     reason = rule_check(text)
     if reason:
         return Verdict("SKIP", f"Skipped by rule: {reason}.", link=link, by_rule=True)
     try:
-        answer = model.generate(PROMPT.format(text=text[:3000]), purpose="triage")
+        answer = model.generate(PROMPT.format(text=text[:3000], today=today or "unknown"), purpose="triage")
     except ModelError as exc:
         return Verdict("MAYBE", f"I could not read it with the model ({exc}) so I did not judge it; check it yourself.", link=link)
     data = extract_json(answer)
@@ -82,7 +83,7 @@ def add_to_tracker(conn, verdict: Verdict, today_iso: str) -> Optional[int]:
     """Record a verdict as a tracker row unless it names no organisation and role (then nothing is invented)."""
     if not verdict.organisation or not verdict.role:
         return None
-    existing = tracker.find(conn, verdict.organisation, verdict.role)
+    existing = tracker.find_similar(conn, verdict.organisation, verdict.role, verdict.link)
     if existing is not None:
         return existing["id"]
     return tracker.add(conn, verdict.organisation, verdict.role, location=verdict.location,
