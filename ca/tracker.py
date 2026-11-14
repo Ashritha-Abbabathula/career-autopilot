@@ -153,10 +153,13 @@ def merge_csv(conn, path) -> dict:
     return {"added": added, "filled": filled}
 
 
-def sync_csv(conn, path) -> dict:
-    """Merge new CSV rows in, then write the database back out, so the file always shows the latest."""
+def sync_csv(conn, path, write_path=None) -> dict:
+    """Merge new CSV rows in, then write the database back out, so the file always shows the latest.
+    On a server the scout's file (read) and the bot's own copy (write) are different files."""
     result = merge_csv(conn, path)
-    result["written"] = export_csv(conn, path)
+    if write_path is not None and Path(write_path).is_file() and Path(write_path) != Path(path):
+        result["also_merged"] = merge_csv(conn, write_path)["added"]
+    result["written"] = export_csv(conn, write_path or path)
     return result
 
 

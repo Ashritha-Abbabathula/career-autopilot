@@ -21,12 +21,16 @@ def tracker_csv(app):
     return Path(app.private_dir) / "tracker" / "applications.csv" if app.private_dir else None
 
 
+def tracker_out(app):
+    return Path(app.output_dir) / "tracker" / "applications.csv" if app.output_dir else None
+
+
 def sync_tracker(app) -> None:
     """Keep the shared CSV (read by the scout, mirrored to your Google Sheet) in step with the bot."""
     path = tracker_csv(app)
     if path is not None:
         try:
-            tracker.sync_csv(app.conn, path)
+            tracker.sync_csv(app.conn, path, tracker_out(app))
         except OSError:
             pass                                          # a locked file must never break a reply
 
@@ -142,9 +146,11 @@ def scorecard(app, cmd, now: datetime) -> str:
 def calendar(app, cmd, now: datetime) -> str:
     if not app.private_dir:
         return "I don't know where to save the calendar yet (CA_PRIVATE_DIR is not set)."
-    path = calendar_view.write(app.conn, Path(app.private_dir) / "calendar" / "live_calendar.html", local_date(app, now))
-    head = (f"Calendar: http://localhost:8765/ (while the bot runs; ticks there are saved to me)\n"
-            f"Offline copy rebuilt: {path}\n\n")
+    path = calendar_view.write(app.conn, Path(app.output_dir or app.private_dir) / "calendar" / "live_calendar.html", local_date(app, now))
+    app.attachments.append(("calendar.html", path.read_bytes(),
+                            "Open this file in your browser. Ticks made there stay on your device; tell me 'done <task>' so I know too."))
+    head = ("Calendar sent as a file. On the same computer as the bot you can also open http://localhost:8765/ "
+            "(ticks there are saved to me).\n\n")
     return head + planner.week_text(app.conn, local_date(app, now))
 
 

@@ -27,7 +27,8 @@ def build_job_text(name, conn, http, cfg, now, today, app=None):
         return None
     if name == "tracker_sync":
         if cfg.private_dir:
-            tracker.sync_csv(conn, Path(cfg.private_dir) / "tracker" / "applications.csv")
+            out = Path(cfg.output_dir or cfg.private_dir)
+            tracker.sync_csv(conn, Path(cfg.private_dir) / "tracker" / "applications.csv", out / "tracker" / "applications.csv")
         return None
     if name == "digest":
         if not digest.is_fresh(cfg.private_dir, today):
@@ -45,7 +46,7 @@ def build_job_text(name, conn, http, cfg, now, today, app=None):
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
         return scorecard.build(conn, today, lc.solved_total if lc else None, scorecard.outreach_sent(Path(cfg.private_dir)))
     if name == "calendar_refresh":
-        calendar_view.write(conn, Path(cfg.private_dir) / "calendar" / "live_calendar.html", today)
+        calendar_view.write(conn, Path(cfg.output_dir or cfg.private_dir) / "calendar" / "live_calendar.html", today)
         return None                                       # silent: just keep the page fresh
     if name == "mentor":
         lc = leetcode.fetch_stats(http, cfg.leetcode_user, now)
@@ -58,7 +59,7 @@ def build_job_text(name, conn, http, cfg, now, today, app=None):
             return None                                   # no facts file yet: nothing honest to write
         if name == "linkedin_draft":
             return linkedin.job(conn, app.model, data, private / "linkedin" / "schedule.json",
-                                private / "linkedin" / "drafts", today)
+                                Path(cfg.output_dir or cfg.private_dir) / "linkedin" / "drafts", today)
         targets = outreach.select_targets(private / "tracker" / "outreach_targets.csv", 3, outreach.already_drafted(conn))
         queued = 0
         for t in targets:
@@ -101,6 +102,35 @@ def tick(app, sender, http, cfg, clock) -> list:
     return handled
 
 
+def send_attachments(app, sender) -> None:
+    """Send any files a command produced (the calendar page). A failure is dropped quietly: the text reply already went."""
+    files, app.attachments = app.attachments, []
+    if not hasattr(sender, "send_document"):
+        return
+    for filename, content, caption in files:
+        try:
+            sender.send_document(filename, content, caption)
+        except Exception as exc:
+            print(f"warning: could not send {filename} ({type(exc).__name__})", file=sys.stderr)
+
+
+def pull_notes(private_dir, run=None) -> bool:
+    """On a server: bring in what the scout and you pushed to the notes repo. Fast-forward only, so it never
+    rewrites anything; returns True if git ran cleanly."""
+    import subprocess
+    run = run or subprocess.run
+    root = Path(private_dir)
+    while root != root.parent and not (root / ".git").exists():
+        root = root.parent                              # the private folder sits inside the notes repo
+    if not (root / ".git").exists():
+        return False
+    try:
+        result = run(["git", "-C", str(root), "pull", "--ff-only", "--quiet"], capture_output=True, timeout=90)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def poll_once(app, sender, http, cfg, clock, wait: int = 25) -> int:
     """Fetch new messages and answer the owner's. Anyone else is ignored and never stored."""
     offset = db.get_setting(app.conn, "tg_offset")
@@ -114,6 +144,7 @@ def poll_once(app, sender, http, cfg, clock, wait: int = 25) -> int:
             continue
         step(app, sender, clock, text, channel="telegram", window_required=False,
              tz_name=cfg.timezone, quiet_start=cfg.quiet_start, quiet_end=cfg.quiet_end)
+        send_attachments(app, sender)
         answered += 1
     return answered
 

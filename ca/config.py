@@ -13,7 +13,7 @@ from typing import Mapping, Optional
 
 SECRET_FIELDS = {"gemini_api_key", "whatsapp_token", "whatsapp_app_secret", "whatsapp_verify_token", "telegram_bot_token"}
 # Not secret, but personal: shown only as set or missing.
-PERSONAL_FIELDS = {"owner_whatsapp", "telegram_owner_chat_id", "leetcode_user", "github_user", "private_dir"}
+PERSONAL_FIELDS = {"owner_whatsapp", "output_dir", "telegram_owner_chat_id", "leetcode_user", "github_user", "private_dir"}
 
 
 def parse_env_file(text: str) -> dict:
@@ -64,6 +64,8 @@ class Config:
     github_user: str = ""
     daily_proactive_cap: int = 8
     calendar_port: int = 8765
+    output_dir: str = ""            # where the bot writes its files; empty means the private folder itself
+    notes_autopull: bool = False     # on a server: pull the notes repo every hour
 
     def redacted(self) -> dict:
         """Settings safe to log: secrets become 'set' or 'missing', nothing partial."""
@@ -118,4 +120,6 @@ def load_config(env: Optional[Mapping[str, str]] = None, env_file: Optional[str]
         github_user=values.get("GITHUB_USER", "").strip(),
         daily_proactive_cap=_int(values, "DAILY_PROACTIVE_CAP", defaults.daily_proactive_cap),
         calendar_port=_int(values, "CALENDAR_PORT", defaults.calendar_port),
+        output_dir=values.get("CA_OUTPUT_DIR", "").strip(),
+        notes_autopull=values.get("NOTES_AUTOPULL", "").strip().lower() in ("1", "true", "yes"),
     )

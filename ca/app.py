@@ -38,11 +38,13 @@ Handler = Callable[["App", Command, datetime], str]
 
 class App:
     def __init__(self, conn, owner: str, executors: Optional[Executors] = None, tz_name: str = "Asia/Kolkata",
-                 model=None, private_dir: str = "", http=None, leetcode_user: str = ""):
+                 model=None, private_dir: str = "", http=None, leetcode_user: str = "", output_dir: str = ""):
         self.conn = conn
         self.owner = owner
         self.tz_name = tz_name
         self.private_dir = private_dir
+        self.output_dir = output_dir or private_dir
+        self.attachments = []                  # (filename, bytes, caption) to send as files after the reply
         self.http = http
         self.leetcode_user = leetcode_user
         self.model = model or NoModel()

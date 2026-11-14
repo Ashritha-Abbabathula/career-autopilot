@@ -19,7 +19,7 @@ from .clock import SystemClock
 from .config import load_config
 from .http import UrllibHttp
 from .llm import GeminiModel, NoModel
-from .runtime import bootstrap, poll_once, tick
+from .runtime import bootstrap, poll_once, pull_notes, tick
 from .telegram import TelegramSender
 
 
@@ -30,7 +30,8 @@ def _absolute(cfg):
     """Make paths independent of where the bot was started from."""
     from dataclasses import replace
     fix = lambda p: p if Path(p).is_absolute() else str((ROOT / p).resolve())
-    return replace(cfg, db_path=fix(cfg.db_path), private_dir=fix(cfg.private_dir))
+    return replace(cfg, db_path=fix(cfg.db_path), private_dir=fix(cfg.private_dir),
+                   output_dir=fix(cfg.output_dir) if cfg.output_dir else "")
 
 
 def main() -> int:
@@ -44,9 +45,9 @@ def main() -> int:
     http, clock = UrllibHttp(), SystemClock()
     model = (GeminiModel(cfg.gemini_api_key, cfg.gemini_models, http, conn, cfg.model_daily_call_cap)
              if cfg.gemini_ready else NoModel())
-    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model, private_dir=cfg.private_dir, http=http,
+    app = App(conn, cfg.telegram_owner_chat_id, tz_name=cfg.timezone, model=model, private_dir=cfg.private_dir, output_dir=cfg.output_dir, http=http,
               leetcode_user=cfg.leetcode_user,
-              executors=Executors(run={"email_draft": outreach.make_executor(Path(cfg.private_dir) / "tracker" / "outreach_drafts", date.today)}))
+              executors=Executors(run={"email_draft": outreach.make_executor(Path(cfg.output_dir or cfg.private_dir) / "tracker" / "outreach_drafts", date.today)}))
     handlers.register_all(app)
     sender = TelegramSender(http, cfg.telegram_bot_token, cfg.telegram_owner_chat_id)
     if cfg.calendar_port:
@@ -60,9 +61,13 @@ def main() -> int:
     mode = "with model" if cfg.gemini_ready else "no model key: fixed commands only"
     print(f"Career Autopilot is running (Telegram, {mode}). Ctrl+C to stop.")
     failures = 0
+    last_pull = 0.0
     try:
         while True:
             try:
+                if cfg.notes_autopull and time.monotonic() - last_pull > 3600:
+                    pull_notes(cfg.private_dir)               # hourly: new scout files, plan and tracker edits
+                    last_pull = time.monotonic()
                 tick(app, sender, http, cfg, clock)
                 started = time.monotonic()
                 poll_once(app, sender, http, cfg, clock)

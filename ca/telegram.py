@@ -42,6 +42,12 @@ class TelegramSender:
             if status != 200:
                 raise TelegramError(f"sendMessage failed with status {status}")
 
+    def send_document(self, filename: str, content: bytes, caption: str = "") -> None:
+        status, _ = self.http.post_file(API.format(token=self._token, method="sendDocument"),
+                                        {"chat_id": self.chat_id, "caption": caption[:900]}, "document", filename, content)
+        if status != 200:
+            raise TelegramError(f"sendDocument failed with status {status}")
+
     def send_template(self, to: str, template_name: str, body: str) -> None:
         self.send_text(to, body)          # Telegram has no templates
 
