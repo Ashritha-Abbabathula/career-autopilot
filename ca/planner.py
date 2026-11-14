@@ -163,7 +163,7 @@ def morning_card(conn, today: date) -> str:
     if exams:
         lines.append(f"Exam day: {exams[0]['title']}. That is the only thing that matters today. All the best.")
     lines.append(day_text(conn, today))
-    due = [i for i in deadlines.upcoming(conn, today, days=3)]
+    due = [i for i in deadlines.upcoming(conn, today, days=7)]
     if due:
         lines.append("Due soon:")
         lines += [deadlines.label(i, today) for i in due[:5]]

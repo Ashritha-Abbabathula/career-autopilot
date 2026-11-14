@@ -126,7 +126,8 @@ class TickTests(unittest.TestCase):
         self.assertIn("could not check LeetCode", self.sender.sent[0][2])
 
     def test_outside_a_job_window_nothing_happens(self):
-        self.assertEqual(runtime.tick(self.app, self.sender, FakeHttp(), cfg(), self.clock_at_ist(14, 0)), [])
+        handled = runtime.tick(self.app, self.sender, FakeHttp(), cfg(), self.clock_at_ist(14, 0))
+        self.assertTrue(set(handled) <= {"rollover", "tracker_sync", "calendar_refresh", "digest"})   # only silent jobs, no message
         self.assertEqual(self.sender.sent, [])
 
 

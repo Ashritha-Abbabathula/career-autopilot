@@ -185,6 +185,21 @@ def set_paused(conn: sqlite3.Connection, paused: bool) -> None:
     set_setting(conn, "paused", "1" if paused else "0")
 
 
+def set_focus(conn: sqlite3.Connection, until: Optional[datetime]) -> None:
+    """Exam mode on until the given time, or off when None."""
+    set_setting(conn, "focus_until", until.isoformat(timespec="seconds") if until else "")
+
+
+def focus_active(conn: sqlite3.Connection, now: datetime) -> bool:
+    raw = get_setting(conn, "focus_until", "")
+    if not raw:
+        return False
+    try:
+        return now < datetime.fromisoformat(raw)
+    except ValueError:
+        return False
+
+
 def add_message(conn: sqlite3.Connection, direction: str, body: str, channel: str = "simulator",
                 status: str = "logged", now: Optional[datetime] = None) -> int:
     cur = conn.execute(

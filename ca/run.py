@@ -23,8 +23,18 @@ from .runtime import bootstrap, poll_once, tick
 from .telegram import TelegramSender
 
 
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _absolute(cfg):
+    """Make paths independent of where the bot was started from."""
+    from dataclasses import replace
+    fix = lambda p: p if Path(p).is_absolute() else str((ROOT / p).resolve())
+    return replace(cfg, db_path=fix(cfg.db_path), private_dir=fix(cfg.private_dir))
+
+
 def main() -> int:
-    cfg = load_config()
+    cfg = _absolute(load_config(env_file=str(ROOT / ".env")))
     if not cfg.telegram_ready:
         print("Telegram is not set up. Fill TELEGRAM_BOT_TOKEN and TELEGRAM_OWNER_CHAT_ID in .env, "
               "then run: python -m ca.check_env")
@@ -48,7 +58,10 @@ def main() -> int:
         while True:
             try:
                 tick(app, sender, http, cfg, clock)
+                started = time.monotonic()
                 poll_once(app, sender, http, cfg, clock)
+                if time.monotonic() - started < 1.0:
+                    time.sleep(3)                  # Telegram unreachable or refused: never spin
                 failures = 0
             except Exception as exc:               # keep running; log the type only (no secrets)
                 failures += 1

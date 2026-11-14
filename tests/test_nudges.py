@@ -20,14 +20,14 @@ def at(h, m=0, day=18):
 class SchedulerTests(unittest.TestCase):
     def test_morning_card_window(self):
         # the daily linkedin check is covered in test_mentor_linkedin; mark it done so these windows stay about the morning card
-        _d = {"linkedin_draft": "2026-11-18", "calendar_refresh": "2026-11-18"}
+        _d = {"linkedin_draft": "2026-11-18", "calendar_refresh": "2026-11-18", "rollover": "2026-11-18", "tracker_sync": "2026-11-18", "digest": "2026-11-18"}
         self.assertEqual(scheduler.due_jobs(at(7, 29), _d), [])
         self.assertEqual(scheduler.due_jobs(at(7, 30), _d), ["morning_card"])
         self.assertEqual(scheduler.due_jobs(at(11, 29), _d), ["morning_card"])
         self.assertEqual(scheduler.due_jobs(at(11, 30), _d), [])           # too late: laptop woke at lunchtime
 
     def test_once_per_day(self):
-        quiet = {"linkedin_draft": "2026-11-18", "calendar_refresh": "2026-11-18"}
+        quiet = {"linkedin_draft": "2026-11-18", "calendar_refresh": "2026-11-18", "rollover": "2026-11-18", "tracker_sync": "2026-11-18", "digest": "2026-11-18"}
         self.assertEqual(scheduler.due_jobs(at(8), dict(quiet, morning_card="2026-11-18")), [])
         self.assertEqual(scheduler.due_jobs(at(8), dict(quiet, morning_card="2026-11-17")), ["morning_card"])
 

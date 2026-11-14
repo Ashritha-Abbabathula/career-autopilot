@@ -73,6 +73,13 @@ def scout_note(private: Path, lines: int = 6) -> str:
     return "\n".join(kept)
 
 
+def is_fresh(private_dir, today: date) -> bool:
+    """True when the scout wrote its digest today, so a stale one is never sent as if it were new."""
+    from datetime import datetime
+    path = Path(private_dir) / "tracker" / "DAILY_DIGEST.md"
+    return path.is_file() and datetime.fromtimestamp(path.stat().st_mtime).date() == today
+
+
 def build_digest(conn, private_dir, today: date) -> str:
     private = Path(private_dir)
     parts = [f"Digest for {today.strftime('%a %d %b')}"]

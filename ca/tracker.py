@@ -103,6 +103,39 @@ def import_csv(conn, path) -> dict:
     return {"added": added, "updated": updated, "skipped": skipped}
 
 
+def merge_csv(conn, path) -> dict:
+    """Bring in rows that appeared in the CSV (the scout, or you in a spreadsheet). Existing rows keep
+    what the database has; the CSV only fills fields the database left empty. Nothing is overwritten."""
+    p = Path(path)
+    if not p.is_file():
+        return {"added": 0, "filled": 0}
+    added = filled = 0
+    with p.open(newline="", encoding="utf-8-sig") as fh:
+        for raw in csv.DictReader(fh):
+            fields = {k: (raw.get(k) or "") for k in FIELDS if k in raw}
+            org, role = fields.get("organisation", "").strip(), fields.get("role_or_programme", "").strip()
+            if not org or not role:
+                continue
+            existing = find(conn, org, role)
+            if existing is None:
+                add(conn, **fields)
+                added += 1
+                continue
+            gaps = {k: v for k, v in fields.items() if v.strip() and not (existing[k] or "").strip()
+                    and k not in ("status", "decision")}
+            if gaps:
+                update(conn, existing["id"], **gaps)
+                filled += 1
+    return {"added": added, "filled": filled}
+
+
+def sync_csv(conn, path) -> dict:
+    """Merge new CSV rows in, then write the database back out, so the file always shows the latest."""
+    result = merge_csv(conn, path)
+    result["written"] = export_csv(conn, path)
+    return result
+
+
 def export_csv(conn, path) -> int:
     rows = list_apps(conn)
     target = Path(path)

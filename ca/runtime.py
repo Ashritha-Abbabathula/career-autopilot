@@ -5,18 +5,34 @@ clock, fake http and fake sender.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from . import clock as clk
-from . import calendar_view, db, facts as facts_mod, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
+from . import calendar_view, db, digest, facts as facts_mod, replan, github, leetcode, linkedin, mentor, nudges, outreach, outbox, planner, scheduler, scorecard, telegram, tracker
 from .chat import step
 
 BUILDERS = {}          # extra jobs (for example the weekly scorecard) register a text builder here
-BUILT_IN = ("calendar_refresh", "mentor", "linkedin_draft", "outreach_queue", "scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
+BUILT_IN = ("rollover", "tracker_sync", "digest", "calendar_refresh", "mentor", "linkedin_draft", "outreach_queue",
+            "scorecard", "morning_card", "checkin", "streak_nudge", "streak_last_call")
+QUIET_JOBS = ("rollover", "tracker_sync", "calendar_refresh")     # never message her
+FOCUS_ALLOWED = ("morning_card", "checkin")                      # the only messages that survive focus mode
+EXAM_WEEK_CAP = 5
 
 
 def build_job_text(name, conn, http, cfg, now, today, app=None):
     """Text for a due job, or None when there is nothing worth saying."""
+    if name == "rollover":
+        replan.rollover(conn, today, now)
+        return None
+    if name == "tracker_sync":
+        if cfg.private_dir:
+            tracker.sync_csv(conn, Path(cfg.private_dir) / "tracker" / "applications.csv")
+        return None
+    if name == "digest":
+        if not digest.is_fresh(cfg.private_dir, today):
+            return None                                       # the scout has not written today's yet: send nothing stale
+        return digest.build_digest(conn, cfg.private_dir, today)
     if name == "morning_card":
         return planner.morning_card(conn, today)
     if name == "checkin":
@@ -61,16 +77,27 @@ def tick(app, sender, http, cfg, clock) -> list:
     now = clock.now()
     local = clk.local_now(clock, cfg.timezone)
     handled = []
+    focus = db.focus_active(app.conn, now)
     for name in scheduler.due_jobs(local, scheduler.load_done(app.conn, db)):
         if name not in BUILT_IN and name not in BUILDERS:
             continue
-        text = build_job_text(name, app.conn, http, cfg, now, local.date(), app)
+        if focus and name not in QUIET_JOBS and name not in FOCUS_ALLOWED:
+            scheduler.mark_done(app.conn, db, name, local)        # focus mode: skipped, not queued for later
+            continue
+        try:
+            text = build_job_text(name, app.conn, http, cfg, now, local.date(), app)
+        except Exception as exc:                                  # one broken job must not stop the others
+            print(f"warning: job {name} failed ({type(exc).__name__})", file=sys.stderr)
+            text = None
         if text:
             outbox.enqueue(app.conn, app.owner, text, "proactive", now=now)
         scheduler.mark_done(app.conn, db, name, local)
         handled.append(name)
+    cap = cfg.daily_proactive_cap
+    if local.date() <= mentor.EXAMS_END:
+        cap = min(cap, EXAM_WEEK_CAP)                             # exam mode: about five a day at most
     outbox.flush(app.conn, sender, now, tz_name=cfg.timezone, quiet_start=cfg.quiet_start, quiet_end=cfg.quiet_end,
-                 daily_proactive_cap=cfg.daily_proactive_cap, window_required=False)
+                 daily_proactive_cap=cap, window_required=False)
     return handled
 
 

@@ -13,6 +13,8 @@ _REPLY = re.compile(r"^(yes|y|ok|approve|skip|no|later|edit)\b\s*#?(\d+)?\s*(.*)
 _PUSH = re.compile(r"^push\s+(.+?)\s+(?:to|until|till)\s+(.+)$", re.I)
 _FREE = re.compile(r"^(?:i\s+(?:only\s+)?have\s+|only\s+|free\s+)?(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b(?:\s+(?:free|left|today))*$", re.I)
 _DONE = re.compile(r"^done\s+(.+)$", re.I)
+_SHOW = re.compile(r"^show\s+#?(\d+)$", re.I)
+_APPLIED = re.compile(r"^applied\s+(?:to\s+|for\s+)?(.+)$", re.I)
 _TRIAGE = re.compile(r"^(?:triage|check|look at)\s+(.+)$", re.I | re.S)
 _LINK = re.compile(r"https?://\S+", re.I)
 _SKIPTASK = re.compile(r"^skip\s+(?!#?\d+\b)(.+)$", re.I)
@@ -36,6 +38,12 @@ def parse(raw: str) -> Command:
     m = _PUSH.match(text)
     if m:
         return Command("push", args={"task": m.group(1).strip(), "to": m.group(2).strip().lower()}, text=text)
+    m = _SHOW.match(text)
+    if m:
+        return Command("show", number=int(m.group(1)), text=text)
+    m = _APPLIED.match(text)
+    if m:
+        return Command("applied", args={"what": m.group(1).strip()}, text=text)
     m = _DONE.match(text)
     if m:
         return Command("done", args={"task": m.group(1).strip()}, text=text)

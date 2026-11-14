@@ -21,7 +21,10 @@ class Job:
 
 
 JOBS = [
+    Job("rollover", 5, 0, 600),          # runs before the morning card, and silently
+    Job("tracker_sync", 6, 30, 600),     # silently keeps the tracker CSV and the database in step
     Job("morning_card", 7, 30, 240),
+    Job("digest", 9, 0, 180),
     Job("streak_nudge", 20, 0, 90),
     Job("checkin", 21, 0, 90),
     Job("streak_last_call", 22, 0, 45),

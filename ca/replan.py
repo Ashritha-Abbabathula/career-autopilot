@@ -159,6 +159,30 @@ def free_hours(conn, hours: float, today: date, now: Optional[datetime] = None) 
     return "\n".join(lines)
 
 
+ROLLOVER_CAP_MINUTES = 360
+
+
+def rollover(conn, today: date, now: Optional[datetime] = None) -> Optional[str]:
+    """Move yesterday's unfinished study into today, up to a daily cap, never onto an exam day.
+    Anything that does not fit stays on yesterday as missed. Logged, so 'undo' reverses it."""
+    if any(planner.is_exam(e["title"]) for e in planner.events_on(conn, today)):
+        return None
+    yesterday = today - timedelta(days=1)
+    left = [t for t in planner.tasks_on(conn, yesterday, include_done=False) if t["kind"] in STUDY_KINDS and t["movable"]]
+    if not left:
+        return None
+    room = ROLLOVER_CAP_MINUTES - planner.study_minutes(conn, today)
+    move = []
+    for t in left:
+        if t["minutes"] <= room:
+            move.append(t)
+            room -= t["minutes"]
+    if not move:
+        return None
+    _apply(conn, "rollover", [t["id"] for t in move], now, planned_date=today.isoformat())
+    return f"Moved {len(move)} unfinished item{'s' if len(move) != 1 else ''} from yesterday into today."
+
+
 def last_change(conn):
     return conn.execute("SELECT * FROM plan_changes WHERE undone = 0 ORDER BY id DESC LIMIT 1").fetchone()
 
