@@ -22,6 +22,7 @@ Return ONE JSON object: {{"post": "the full post text"}}.
 Rules: 120 to 180 words; short plain sentences, no buzzwords, no hashtags spam (at most 3); first line is one concrete hook;
 say what she built and why; include one measured result and one thing that went wrong or surprised her, but ONLY if the facts below state them;
 if they do not, write the placeholder [ADD ONE REAL NUMBER OR MOMENT FROM YOUR OWN WORK] instead of inventing anything;
+do not describe tests, field trials, deployments, places, disasters or outcomes that the facts do not state (no "tested in earthquakes"), and do not call a prototype a product;
 end with the link and one question asking for feedback (not for a job). Never say published, accepted or national unless a fact says so.
 Project: {project}
 Link: {link}
